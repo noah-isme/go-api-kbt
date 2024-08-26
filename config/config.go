@@ -2,9 +2,11 @@ package config
 
 import (
 	"fmt"
+	"go-api-kbt/models"
 	"log"
 	"os"
 
+	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -13,6 +15,12 @@ var DB *gorm.DB
 
 func InitDB() {
 	var err error
+
+	// Muat variabel lingkungan dari file .env
+	err = godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file")
+	}
 
 	// Membaca variabel lingkungan
 	host := os.Getenv("DB_HOST")
@@ -33,6 +41,16 @@ func InitDB() {
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
+	}
+
+	// Migrasi tabel
+	err = DB.AutoMigrate(&models.User{})
+	if err != nil {
+		log.Fatal("Failed to migrate database:", err)
+	}
+
+	if DB == nil {
+		log.Fatal("DB connection is nil")
 	}
 
 	log.Println("Database connected")
