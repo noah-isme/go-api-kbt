@@ -2,6 +2,7 @@ package routes
 
 import (
 	"go-api-kbt/controllers"
+	"go-api-kbt/utils"
 
 	"github.com/gorilla/mux"
 )
@@ -23,6 +24,13 @@ func InitRoutes() *mux.Router {
 
 	// Rute untuk mengikuti event
 	router.HandleFunc("/events/{event_id}/join/{user_id}", controllers.JoinEvent).Methods("POST")
+
+	// Rute untuk lokasi
+	router.HandleFunc("/location", controllers.UpdateLocation).Methods("POST")
+	router.HandleFunc("/locations/live/{event_id}", controllers.GetLiveLocations).Methods("GET")
+	router.HandleFunc("/ws", utils.HandleConnections)
+
+	go utils.HandleBroadcast()
 
 	return router
 }

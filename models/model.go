@@ -16,3 +16,12 @@ type User struct {
 	Password string `json:"password"`
 	EventID  *uint  `json:"event_id"` // Foreign key ke Event
 }
+
+type Location struct {
+	gorm.Model
+	UserID    uint    `json:"user_id"`
+	EventID   uint    `json:"event_id"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Timestamp int64   `json:"timestamp"`
+}

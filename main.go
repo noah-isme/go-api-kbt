@@ -10,6 +10,7 @@ import (
 func main() {
 	// Inisialisasi database
 	config.InitDB()
+	config.InitRedis()
 
 	// Inisialisasi router
 	router := routes.InitRoutes()
