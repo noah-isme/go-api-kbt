@@ -43,11 +43,14 @@ func InitDB() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// Migrasi tabel
-	err = DB.AutoMigrate(&models.User{})
+	// Auto Migrate models
+	err = DB.AutoMigrate(&models.Event{}, &models.User{})
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
+
+	// // Check if tables exist
+	// checkTables(DB)
 
 	if DB == nil {
 		log.Fatal("DB connection is nil")
@@ -55,3 +58,26 @@ func InitDB() {
 
 	log.Println("Database connected")
 }
+
+// func checkTables(db *gorm.DB) {
+// 	var tableNames []string
+// 	rows, err := db.Raw("SELECT event FROM information_schema.tables WHERE table_schema = 'public'").Rows()
+// 	if err != nil {
+// 		log.Fatal("Failed to query database schema:", err)
+// 	}
+// 	defer rows.Close()
+
+// 	for rows.Next() {
+// 		var tableName string
+// 		if err := rows.Scan(&tableName); err != nil {
+// 			log.Fatal("Failed to scan table name:", err)
+// 		}
+// 		tableNames = append(tableNames, tableName)
+// 	}
+
+// 	// Print or log table names
+// 	fmt.Println("Tables in the database:")
+// 	for _, name := range tableNames {
+// 		fmt.Println(name)
+// 	}
+// }

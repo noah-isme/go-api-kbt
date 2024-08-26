@@ -16,5 +16,13 @@ func InitRoutes() *mux.Router {
 	router.HandleFunc("/users/{id}", controllers.UpdateUser).Methods("PUT")
 	router.HandleFunc("/users/{id}", controllers.DeleteUser).Methods("DELETE")
 
+	// Rute untuk event
+	router.HandleFunc("/events", controllers.GetEvents).Methods("GET")
+	router.HandleFunc("/events/{id}", controllers.GetEventByID).Methods("GET")
+	router.HandleFunc("/events", controllers.CreateEvent).Methods("POST")
+
+	// Rute untuk mengikuti event
+	router.HandleFunc("/events/{event_id}/join/{user_id}", controllers.JoinEvent).Methods("POST")
+
 	return router
 }
