@@ -1,0 +1,20 @@
+# .air.toml
+
+# Daftar direktori yang akan dipantau
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o tmp/main ."
+  include = ["."]
+  exclude = ["tmp"]
+  
+[log]
+  time = "2006-01-02 15:04:05"
+  log_file = "air.log"
+  log_level = "info"
+  
+[color]
+  main = "cyan"
+  build = "green"
+  reload = "yellow"
