@@ -1,111 +1,102 @@
 # go-api-kbt
-# Application Programming Interface build with go for Kedunglo Biking Team Application
 
-go-api-kbt adalah boilerplate API Golang yang dirancang sebagai titik awal untuk membangun backend aplikasi kedunglo biking team. API ini menggunakan kerangka kerja yang populer dan mudah digunakan untuk pengembangan web dengan Golang.
+API backend untuk Kedunglo Biking Team (KBT) dengan arsitektur modern, siap diskalakan, dan mengikuti praktik terbaik Go.
 
-## Fitur Utama
+## Fitur utama
 
-- Routing: Menggunakan paket mux untuk menangani permintaan HTTP dan merutekannya ke fungsi handler yang sesuai.
-- ORM: Menggunakan gorm sebagai ORM untuk berinteraksi dengan database PostgreSQL. Memudahkan dalam melakukan operasi CRUD (Create, Read, Update, Delete) pada data.
-- Struktur Modular: Kode terorganisir dalam modul-modul yang jelas, memudahkan pemeliharaan dan pengembangan lebih lanjut.
-- Dokumentasi: Dokumentasi API yang jelas menggunakan format yang mudah dibaca, seperti Swagger atau OpenAPI.
+- **Struktur proyek standar** dengan `cmd/`, `internal/`, dan `pkg/` (jika diperlukan) untuk menjaga batasan dependency.
+- **Layered architecture** (domain, repository, service, transport) untuk memudahkan testing dan pergantian infrastruktur.
+- **Konfigurasi berbasis environment** menggunakan `.env` dan `envconfig`, dilengkapi profil environment.
+- **Middleware komprehensif**: request ID, structured logging (slog), recovery, CORS, dan rate limiting.
+- **Validasi request** memakai `go-playground/validator` dengan DTO terpisah dari entity GORM.
+- **Observability** via OpenTelemetry stdout exporter (mudah diarahkan ke OTLP collector).
+- **Docker & Compose** untuk pengembangan lokal (API + PostgreSQL + Redis).
+- **CI GitHub Actions** menjalankan lint → test → build → docker build.
 
-## Prasyarat
+## Getting started
 
-- Golang: Pastikan Golang sudah terinstal di sistem Anda.
-- Go Modules: Pastikan Go Modules sudah diaktifkan.
-- PostgreSQL: Instal dan jalankan server database PostgreSQL.
-- Editor Kode: Pilih editor kode yang Anda sukai, seperti Visual Studio Code, GoLand, atau Vim.
+### Prasyarat
+- Go 1.22+
+- Docker & Docker Compose (opsional namun direkomendasikan)
+- PostgreSQL & Redis (jika tidak memakai Compose)
 
-# Instalasi
+### Konfigurasi
 
-## Clone repository:
+1. Salin file contoh environment:
+   ```bash
+   cp .env.example .env
+   ```
+2. Sesuaikan nilai variabel sesuai kebutuhan (lihat deskripsi variabel pada `.env.example`).
+
+### Menjalankan secara lokal
+
 ```bash
-git clone https://github.com/Noorwahid717/go-api-kbt
+make run
 ```
 
-## Instal dependensi:
-```bash
-cd go-api-kbt
-go mod tidy
-```
-## Konfigurasi database:
+Atau gunakan Docker Compose:
 
-- Buat database PostgreSQL baru.
-- Sesuaikan konfigurasi database di file konfigurasi.
-- Jalankan migrasi:
-- Jalankan perintah migrasi untuk membuat tabel di database (jika diperlukan).
-- Penggunaan
-- Jalankan server:
 ```bash
-- go run main.go
+docker-compose up --build
 ```
 
-## Akses API:
+Aplikasi akan tersedia di `http://localhost:9090` dengan health check pada `/healthz` dan API versi pertama di `/api/v1`.
 
-Gunakan tools seperti Postman atau curl untuk mengakses endpoint API yang telah didefinisikan.
-Struktur Proyek
-```shell
+### Workflow pengembangan
+
+```bash
+make lint   # golangci-lint
+make test   # go test ./...
+make build  # go build ./...
+```
+
+Semua perintah tersebut dijalankan otomatis pada pipeline CI (`.github/workflows/ci.yml`).
+
+## Struktur proyek
+
+```
 go-api-kbt/
-├── main.go
-├── go.mod
-├── go.sum
-├── config/
-│   └── config.go
-├── controllers/
-│   └── user_controller.go
-├── models/
-│   └── user.go
-├── routes/
-│   └── routes.go
-├── utils/
-│   └── response.go
-├── .env
-└── ...
+├── cmd/
+│   └── api/          # entrypoint aplikasi
+├── internal/
+│   ├── app/          # inisialisasi dependency & server
+│   ├── config/       # loader konfigurasi (.env + env vars)
+│   ├── database/     # koneksi postgres, migrasi, dan seed
+│   ├── domain/       # entity domain (user, event, location)
+│   ├── middleware/   # middleware custom (structured logging)
+│   ├── observability/# setup OpenTelemetry
+│   ├── repository/   # implementasi repositori (GORM)
+│   ├── service/      # business logic/usecase
+│   └── transport/    # HTTP handlers & router (chi)
+├── migrations/       # migrasi SQL (golang-migrate compatible)
+├── docker-compose.yml
+├── Dockerfile
+├── Makefile
+└── README.md
 ```
-- main.go: Titik masuk utama aplikasi.
-- config/: Menyimpan konfigurasi aplikasi, seperti koneksi database.
-- controllers/: Mengandung logika bisnis dan menangani permintaan HTTP.
-- models/: Mendefinisikan struktur data yang akan disimpan di database.
-- routes/: Mendefinisikan rute API.
-- database/: Mengandung file migrasi untuk mengatur database.
-- .env: Menyimpan variabel lingkungan sensitif (opsional).
-- Pengembangan Lebih Lanjut
-- Fitur Tambahan:
-- Registrasi dan autentikasi pengguna.
-- Manajemen profil pengguna.
-- Fitur pencarian sepeda.
-- Sistem rating dan ulasan.
-- Notifikasi.
-- Pengujian:
-- Tulis unit test untuk memastikan fungsionalitas kode.
-- Gunakan tools seperti Go test untuk menjalankan tes.
-- Deployment:
-- Deploy aplikasi ke lingkungan produksi menggunakan platform seperti Heroku, AWS, atau Google Cloud.
 
+## Migrasi & seeding
 
-## Contoh Endpoint API
+Migrasi menggunakan format [golang-migrate](https://github.com/golang-migrate/migrate). Jalankan perintah berikut setelah mengisi variabel environment database:
 
-
-```json
-{
-  "method": "GET",
-  "path": "/users",
-  "description": "Get all users",
-  "response": {
-    "200": {
-      "description": "OK",
-      "content": {
-        "application/json": {
-          "schema": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/User"
-            }
-          }
-        }
-      }
-    }
-  }
-}
+```bash
+make migrate
 ```
+
+Aktifkan `DB_SEED_ADMIN=true` untuk membuat akun admin default (`admin@example.com`, password `ChangeMe123!`). Pastikan segera mengganti password di produksi.
+
+## Testing
+
+Unit test tersedia untuk service layer. Tambahkan integration test menggunakan `httptest` atau Compose sesuai kebutuhan proyek.
+
+## Observability
+
+Secara default tracing dikirim ke stdout dalam format OpenTelemetry sehingga mudah diinspeksi. Sesuaikan konfigurasi OTEL pada `.env` untuk mengarahkannya ke collector (misal OTLP/HTTP atau gRPC).
+
+## Dokumentasi API
+
+Gunakan Swagger/OpenAPI generator seperti [swaggo](https://github.com/swaggo/swag) untuk menghasilkan dokumentasi otomatis dari handler. Struktur DTO dan handler telah disiapkan agar mudah diintegrasikan.
+
+## Deployment
+
+Gunakan Docker image yang dihasilkan dari `Dockerfile` multi-stage. Target hosting yang disarankan: Railway, Render, Fly.io, atau platform container lain. Pastikan environment variable sudah terkonfigurasi dan endpoint health check (`/healthz`) digunakan untuk readiness probe.
