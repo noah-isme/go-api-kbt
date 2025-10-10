@@ -1,20 +1,19 @@
-# Use an official Golang runtime as a parent image
-FROM golang:latest
+# syntax=docker/dockerfile:1
 
-# Set the working directory to /app
-WORKDIR /app
+FROM golang:1.24 AS builder
+WORKDIR /src
 
-# Copy the current directory contents into the container at /app
-COPY . /app
-
-# Download and install any required dependencies
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Build the Go app
-RUN go build -o main .
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/api ./cmd/api
 
-# Expose port 8080 for incoming traffic
+FROM gcr.io/distroless/base-debian12:nonroot
+WORKDIR /app
+COPY --from=builder /out/api /app/api
+
 EXPOSE 9090
 
-# Define the command to run the app when the container starts
-CMD ["/app/main"]
+USER nonroot:nonroot
+ENTRYPOINT ["/app/api"]
