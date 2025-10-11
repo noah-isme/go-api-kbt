@@ -84,5 +84,8 @@ func (b *RouterBuilder) Build() http.Handler {
 		_, _ = w.Write([]byte("ok"))
 	})
 
+	// Serve API docs (openapi + Swagger UI)
+	RegisterDocsRoutes(r)
+
 	return r
 }

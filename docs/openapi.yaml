@@ -1,0 +1,247 @@
+openapi: 3.0.3
+info:
+  title: KBT API
+  version: "0.1.0"
+servers:
+  - url: http://localhost:9090
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: ok
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/v1/users:
+    post:
+      summary: Create user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserInput'
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '400':
+          description: validation error
+    get:
+      summary: List users
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserDTO'
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+  /api/v1/users/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Get user
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+    put:
+      summary: Update user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+    delete:
+      summary: Delete user
+      responses:
+        '204':
+          description: No Content
+
+  /api/v1/events:
+    post:
+      summary: Create event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventInput'
+      responses:
+        '201':
+          description: created
+    get:
+      summary: List events
+      responses:
+        '200':
+          description: list
+  /api/v1/events/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Get event
+      responses:
+        '200':
+          description: OK
+    put:
+      summary: Update event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEventInput'
+      responses:
+        '200':
+          description: OK
+    delete:
+      summary: Delete event
+      responses:
+        '204':
+          description: No Content
+
+  /api/v1/locations:
+    post:
+      summary: Create location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLocationInput'
+      responses:
+        '201':
+          description: created
+    get:
+      summary: List locations
+      responses:
+        '200':
+          description: list
+  /api/v1/locations/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Get location
+      responses:
+        '200':
+          description: OK
+    put:
+      summary: Update location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLocationInput'
+      responses:
+        '200':
+          description: OK
+    delete:
+      summary: Delete location
+      responses:
+        '204':
+          description: No Content
+
+components:
+  schemas:
+    CreateUserInput:
+      type: object
+      properties:
+        username: { type: string }
+        email: { type: string }
+        password: { type: string }
+        role: { type: string }
+        event_id: { type: integer, nullable: true }
+      required: [username, email, password, role]
+    UpdateUserInput:
+      type: object
+      properties:
+        username: { type: string }
+        email: { type: string }
+        password: { type: string }
+        role: { type: string }
+        event_id: { type: integer, nullable: true }
+    UserDTO:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        email: { type: string }
+        role: { type: string }
+        event_id: { type: integer, nullable: true }
+        last_login_at: { type: string, nullable: true }
+        created_at: { type: string }
+        updated_at: { type: string }
+    CreateEventInput:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+      required: [name]
+    UpdateEventInput:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+    CreateLocationInput:
+      type: object
+      properties:
+        user_id: { type: integer }
+        event_id: { type: integer }
+        latitude: { type: number }
+        longitude: { type: number }
+        timestamp: { type: integer }
+      required: [user_id, event_id, latitude, longitude, timestamp]
+    UpdateLocationInput:
+      type: object
+      properties:
+        latitude: { type: number }
+        longitude: { type: number }
+        timestamp: { type: integer }

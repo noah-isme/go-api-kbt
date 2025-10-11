@@ -97,6 +97,16 @@ Secara default tracing dikirim ke stdout dalam format OpenTelemetry sehingga mud
 
 Gunakan Swagger/OpenAPI generator seperti [swaggo](https://github.com/swaggo/swag) untuk menghasilkan dokumentasi otomatis dari handler. Struktur DTO dan handler telah disiapkan agar mudah diintegrasikan.
 
+Untuk pengalaman cepat, repositori menyertakan dokumentasi OpenAPI dan Swagger UI yang dapat diakses di runtime pada `/docs/`.
+
+Install Swagger UI assets (lokal) dengan:
+
+```bash
+make docs-install
+```
+
+Kemudian jalankan aplikasi dan buka `http://localhost:9090/docs/`.
+
 ## Deployment
 
 Gunakan Docker image yang dihasilkan dari `Dockerfile` multi-stage. Target hosting yang disarankan: Railway, Render, Fly.io, atau platform container lain. Pastikan environment variable sudah terkonfigurasi dan endpoint health check (`/healthz`) digunakan untuk readiness probe.

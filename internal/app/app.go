@@ -9,17 +9,17 @@ import (
 
 	"go-api-kbt/internal/config"
 	"go-api-kbt/internal/database"
-	domainUser "go-api-kbt/internal/domain/user"
 	domainEvent "go-api-kbt/internal/domain/event"
 	domainLocation "go-api-kbt/internal/domain/location"
+	domainUser "go-api-kbt/internal/domain/user"
 
-	repoUser "go-api-kbt/internal/repository/user"
 	repoEvent "go-api-kbt/internal/repository/event"
 	repoLocation "go-api-kbt/internal/repository/location"
+	repoUser "go-api-kbt/internal/repository/user"
 
-	serviceUser "go-api-kbt/internal/service/user"
 	serviceEvent "go-api-kbt/internal/service/event"
 	serviceLocation "go-api-kbt/internal/service/location"
+	serviceUser "go-api-kbt/internal/service/user"
 
 	transport "go-api-kbt/internal/transport/http"
 	handler "go-api-kbt/internal/transport/http/handler"
