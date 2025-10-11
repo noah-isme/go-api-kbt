@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -44,6 +45,11 @@ func (h *UserHandler) create(w http.ResponseWriter, r *http.Request) {
 
 	dto, err := h.service.Create(r.Context(), input)
 	if err != nil {
+		// validation errors
+		if respondValidationWithJSONTags(w, input, err) {
+			return
+		}
+
 		switch {
 		case errors.Is(err, service.ErrEmailAlreadyExists):
 			respondError(w, http.StatusConflict, err.Error())
@@ -100,14 +106,20 @@ func (h *UserHandler) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Read body for better debug logging on decode errors.
+	body, _ := io.ReadAll(r.Body)
 	var input service.UpdateInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+	if err := json.Unmarshal(body, &input); err != nil {
+		h.logger.Error("failed to decode update payload", slog.String("error", err.Error()), slog.String("body", string(body)))
 		respondError(w, http.StatusBadRequest, "invalid request payload")
 		return
 	}
 
 	dto, err := h.service.Update(r.Context(), id, input)
 	if err != nil {
+		if tryRespondValidation(w, err) {
+			return
+		}
 		if errors.Is(err, repo.ErrNotFound) {
 			respondError(w, http.StatusNotFound, "user not found")
 			return

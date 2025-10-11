@@ -15,13 +15,27 @@ import (
 
 // RouterBuilder wires handlers and middleware together.
 type RouterBuilder struct {
-	userHandler *handler.UserHandler
-	middlewares []func(http.Handler) http.Handler
+	userHandler     *handler.UserHandler
+	eventHandler    *handler.EventHandler
+	locationHandler *handler.LocationHandler
+	middlewares     []func(http.Handler) http.Handler
 }
 
 // NewRouterBuilder constructs a new router builder instance.
 func NewRouterBuilder(userHandler *handler.UserHandler) *RouterBuilder {
 	return &RouterBuilder{userHandler: userHandler}
+}
+
+// WithEventHandler attaches an event handler.
+func (b *RouterBuilder) WithEventHandler(h *handler.EventHandler) *RouterBuilder {
+	b.eventHandler = h
+	return b
+}
+
+// WithLocationHandler attaches a location handler.
+func (b *RouterBuilder) WithLocationHandler(h *handler.LocationHandler) *RouterBuilder {
+	b.locationHandler = h
+	return b
 }
 
 // WithMiddlewares sets additional middlewares to apply to the router.
@@ -54,7 +68,15 @@ func (b *RouterBuilder) Build() http.Handler {
 	}
 
 	r.Route("/api/v1", func(r chi.Router) {
-		b.userHandler.RegisterRoutes(r)
+		if b.userHandler != nil {
+			b.userHandler.RegisterRoutes(r)
+		}
+		if b.eventHandler != nil {
+			b.eventHandler.RegisterRoutes(r)
+		}
+		if b.locationHandler != nil {
+			b.locationHandler.RegisterRoutes(r)
+		}
 	})
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {

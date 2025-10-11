@@ -10,8 +10,17 @@ import (
 	"go-api-kbt/internal/config"
 	"go-api-kbt/internal/database"
 	domainUser "go-api-kbt/internal/domain/user"
+	domainEvent "go-api-kbt/internal/domain/event"
+	domainLocation "go-api-kbt/internal/domain/location"
+
 	repoUser "go-api-kbt/internal/repository/user"
+	repoEvent "go-api-kbt/internal/repository/event"
+	repoLocation "go-api-kbt/internal/repository/location"
+
 	serviceUser "go-api-kbt/internal/service/user"
+	serviceEvent "go-api-kbt/internal/service/event"
+	serviceLocation "go-api-kbt/internal/service/location"
+
 	transport "go-api-kbt/internal/transport/http"
 	handler "go-api-kbt/internal/transport/http/handler"
 )
@@ -30,7 +39,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Applica
 		return nil, fmt.Errorf("connect database: %w", err)
 	}
 
-	if err := db.AutoMigrate(&domainUser.Entity{}); err != nil {
+	if err := db.AutoMigrate(&domainUser.Entity{}, &domainEvent.Entity{}, &domainLocation.Entity{}); err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}
 
@@ -42,7 +51,19 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Applica
 	userService := serviceUser.NewService(userRepository, cfg.Auth.HashCost)
 	userHandler := handler.NewUserHandler(userService, logger)
 
-	router := transport.NewRouterBuilder(userHandler).Build()
+	eventRepository := repoEvent.NewGormRepository(db.GormDB())
+	eventService := serviceEvent.NewService(eventRepository)
+	eventHandler := handler.NewEventHandler(eventService, logger)
+
+	locationRepository := repoLocation.NewGormRepository(db.GormDB())
+	locationService := serviceLocation.NewService(locationRepository)
+	locationHandler := handler.NewLocationHandler(locationService, logger)
+
+	router := transport.NewRouterBuilder(userHandler).
+		WithEventHandler(eventHandler).
+		WithLocationHandler(locationHandler).
+		WithMiddlewares().
+		Build()
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
