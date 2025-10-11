@@ -28,9 +28,6 @@ func RegisterDocsRoutes(r chi.Router) {
 	sub, _ := fs.Sub(swaggerUI, "swagger-ui")
 	handler := http.StripPrefix("/docs/", http.FileServer(http.FS(sub)))
 
-	// static assets (css/js) -> /docs/*
-	r.Handle("/docs/*", handler)
-
 	// redirect bare /docs to /docs/
 	r.Get("/docs", func(w http.ResponseWriter, req *http.Request) {
 		http.Redirect(w, req, "/docs/", http.StatusTemporaryRedirect)
@@ -48,4 +45,7 @@ func RegisterDocsRoutes(r chi.Router) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.Copy(w, f)
 	})
+
+	// static assets (css/js) -> /docs/* (register last so exact routes take precedence)
+	r.Handle("/docs/*", handler)
 }

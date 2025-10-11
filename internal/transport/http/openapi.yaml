@@ -32,7 +32,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserDTO'
         '400':
-          description: validation error
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
     get:
       summary: List users
       parameters:
@@ -76,6 +78,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserDTO'
+        '404':
+          $ref: '#/components/responses/NotFound'
     put:
       summary: Update user
       requestBody:
@@ -91,11 +95,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserDTO'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       summary: Delete user
       responses:
         '204':
           description: No Content
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/v1/events:
     post:
@@ -109,11 +119,39 @@ paths:
       responses:
         '201':
           description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDTO'
+        '400':
+          $ref: '#/components/responses/ValidationError'
     get:
       summary: List events
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
       responses:
         '200':
           description: list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EventDTO'
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
   /api/v1/events/{id}:
     parameters:
       - name: id
@@ -126,6 +164,12 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDTO'
+        '404':
+          $ref: '#/components/responses/NotFound'
     put:
       summary: Update event
       requestBody:
@@ -137,11 +181,21 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDTO'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       summary: Delete event
       responses:
         '204':
           description: No Content
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/v1/locations:
     post:
@@ -155,11 +209,39 @@ paths:
       responses:
         '201':
           description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationDTO'
+        '400':
+          $ref: '#/components/responses/ValidationError'
     get:
       summary: List locations
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
       responses:
         '200':
           description: list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LocationDTO'
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
   /api/v1/locations/{id}:
     parameters:
       - name: id
@@ -172,6 +254,12 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationDTO'
+        '404':
+          $ref: '#/components/responses/NotFound'
     put:
       summary: Update location
       requestBody:
@@ -183,11 +271,21 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationDTO'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       summary: Delete location
       responses:
         '204':
           description: No Content
+        '404':
+          $ref: '#/components/responses/NotFound'
 
 components:
   schemas:
@@ -230,6 +328,14 @@ components:
       properties:
         name: { type: string }
         description: { type: string }
+    EventDTO:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: string }
+        created_at: { type: string }
+        updated_at: { type: string }
     CreateLocationInput:
       type: object
       properties:
@@ -245,3 +351,33 @@ components:
         latitude: { type: number }
         longitude: { type: number }
         timestamp: { type: integer }
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+
+  responses:
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              errors:
+                type: object
+                additionalProperties:
+                  type: string
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ConflictError:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

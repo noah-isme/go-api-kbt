@@ -2,8 +2,9 @@ window.onload = function() {
   //<editor-fold desc="Changeable Configuration Block">
 
   // the following lines will be replaced by docker/configurator, when it runs in a docker-container
+  // Use the embedded OpenAPI spec served at /docs/openapi.yaml in this project
   window.ui = SwaggerUIBundle({
-    url: "https://petstore.swagger.io/v2/swagger.json",
+    url: "/docs/openapi.yaml",
     dom_id: '#swagger-ui',
     deepLinking: true,
     presets: [
