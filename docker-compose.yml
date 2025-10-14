@@ -33,5 +33,11 @@ services:
     depends_on:
       - postgres
       - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 volumes:
   postgres_data:

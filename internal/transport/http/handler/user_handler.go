@@ -6,10 +6,11 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strconv"
 
 	repo "go-api-kbt/internal/repository/user"
 	service "go-api-kbt/internal/service/user"
+	web "go-api-kbt/internal/transport/http"
+	"go-api-kbt/internal/transport/http/dto"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -36,8 +37,19 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 	})
 }
 
+// @Summary Create a new user
+// @Description Create a new user with the provided details
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param input body dto.CreateUserInput true "User creation input"
+// @Success 201 {object} dto.UserDTO
+// @Failure 400 {object} dto.Problem
+// @Failure 409 {object} dto.Problem
+// @Failure 500 {object} dto.Problem
+// @Router /users [post]
 func (h *UserHandler) create(w http.ResponseWriter, r *http.Request) {
-	var input service.CreateInput
+	var input dto.CreateUserInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request payload")
 		return
@@ -46,7 +58,7 @@ func (h *UserHandler) create(w http.ResponseWriter, r *http.Request) {
 	dto, err := h.service.Create(r.Context(), input)
 	if err != nil {
 		// validation errors
-		if respondValidationWithJSONTags(w, input, err) {
+		if RespondValidationWithJSONTags(w, input, err) {
 			return
 		}
 
@@ -63,8 +75,19 @@ func (h *UserHandler) create(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusCreated, dto)
 }
 
+// @Summary Get all users
+// @Description Retrieve a list of all users with pagination and filtering
+// @Tags User
+// @Produce json
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Number of items per page" default(20)
+// @Param q query string false "Search query"
+// @Param sort query string false "Sort order (e.g., id asc, name desc)"
+// @Success 200 {object} dto.UserListResponse
+// @Failure 500 {object} dto.Problem
+// @Router /users [get]
 func (h *UserHandler) list(w http.ResponseWriter, r *http.Request) {
-	limit, offset := parsePagination(r)
+	limit, offset := web.ParsePagination(r)
 	users, err := h.service.List(r.Context(), limit, offset)
 	if err != nil {
 		h.logger.Error("list users", slog.String("error", err.Error()))
@@ -78,8 +101,18 @@ func (h *UserHandler) list(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// @Summary Get a user by ID
+// @Description Retrieve a single user by its ID
+// @Tags User
+// @Produce json
+// @Param id path int true "User ID"
+// @Success 200 {object} dto.UserDTO
+// @Failure 400 {object} dto.Problem
+// @Failure 404 {object} dto.Problem
+// @Failure 500 {object} dto.Problem
+// @Router /users/{id} [get]
 func (h *UserHandler) get(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUintParam(chi.URLParam(r, "id"))
+	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "invalid user id")
 		return
@@ -99,8 +132,20 @@ func (h *UserHandler) get(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, dto)
 }
 
+// @Summary Update a user
+// @Description Update an existing user with the provided details
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Param input body dto.UpdateUserInput true "User update input"
+// @Success 200 {object} dto.UserDTO
+// @Failure 400 {object} dto.Problem
+// @Failure 404 {object} dto.Problem
+// @Failure 500 {object} dto.Problem
+// @Router /users/{id} [put]
 func (h *UserHandler) update(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUintParam(chi.URLParam(r, "id"))
+	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "invalid user id")
 		return
@@ -108,7 +153,7 @@ func (h *UserHandler) update(w http.ResponseWriter, r *http.Request) {
 
 	// Read body for better debug logging on decode errors.
 	body, _ := io.ReadAll(r.Body)
-	var input service.UpdateInput
+	var input dto.UpdateUserInput
 	if err := json.Unmarshal(body, &input); err != nil {
 		h.logger.Error("failed to decode update payload", slog.String("error", err.Error()), slog.String("body", string(body)))
 		respondError(w, http.StatusBadRequest, "invalid request payload")
@@ -117,7 +162,7 @@ func (h *UserHandler) update(w http.ResponseWriter, r *http.Request) {
 
 	dto, err := h.service.Update(r.Context(), id, input)
 	if err != nil {
-		if tryRespondValidation(w, err) {
+		if TryRespondValidation(w, err) {
 			return
 		}
 		if errors.Is(err, repo.ErrNotFound) {
@@ -132,8 +177,18 @@ func (h *UserHandler) update(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, dto)
 }
 
+// @Summary Delete a user
+// @Description Delete a user by its ID
+// @Tags User
+// @Produce json
+// @Param id path int true "User ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} dto.Problem
+// @Failure 404 {object} dto.Problem
+// @Failure 500 {object} dto.Problem
+// @Router /users/{id} [delete]
 func (h *UserHandler) delete(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUintParam(chi.URLParam(r, "id"))
+	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "invalid user id")
 		return
@@ -150,38 +205,4 @@ func (h *UserHandler) delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func parsePagination(r *http.Request) (int, int) {
-	query := r.URL.Query()
-	limit, _ := strconv.Atoi(query.Get("limit"))
-	offset, _ := strconv.Atoi(query.Get("offset"))
-	if limit <= 0 {
-		limit = 20
-	}
-	if offset < 0 {
-		offset = 0
-	}
-	return limit, offset
-}
-
-func parseUintParam(value string) (uint, error) {
-	parsed, err := strconv.ParseUint(value, 10, 32)
-	if err != nil {
-		return 0, err
-	}
-	return uint(parsed), nil
-}
-
-func respondJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(payload); err != nil {
-		// response writing errors are logged but not returned to the client
-		slog.Default().Error("encode response", slog.String("error", err.Error()))
-	}
-}
-
-func respondError(w http.ResponseWriter, status int, message string) {
-	respondJSON(w, status, map[string]string{"error": message})
 }

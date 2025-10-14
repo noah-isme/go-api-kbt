@@ -1,0 +1,1124 @@
+basePath: /api/v1
+definitions:
+  dto.ActivityDTO:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.ActivityListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.ActivityDTO'
+        type: array
+      meta:
+        $ref: '#/definitions/dto.PaginationMeta'
+    type: object
+  dto.AuthOutput:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  dto.CreateEventInput:
+    properties:
+      description:
+        maxLength: 1024
+        type: string
+      name:
+        maxLength: 128
+        minLength: 1
+        type: string
+    required:
+    - name
+    type: object
+  dto.CreateLocationInput:
+    properties:
+      address:
+        maxLength: 255
+        minLength: 3
+        type: string
+      name:
+        maxLength: 128
+        minLength: 3
+        type: string
+    required:
+    - address
+    - name
+    type: object
+  dto.CreateMedalerInput:
+    properties:
+      email:
+        type: string
+      name:
+        maxLength: 64
+        minLength: 3
+        type: string
+    required:
+    - email
+    - name
+    type: object
+  dto.CreateUserInput:
+    properties:
+      email:
+        type: string
+      event_id:
+        type: integer
+      password:
+        minLength: 8
+        type: string
+      role:
+        $ref: '#/definitions/user.Role'
+      username:
+        maxLength: 64
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - role
+    - username
+    type: object
+  dto.EventDTO:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.EventListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.EventDTO'
+        type: array
+      meta:
+        $ref: '#/definitions/dto.PaginationMeta'
+    type: object
+  dto.LocationDTO:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.LocationListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.LocationDTO'
+        type: array
+      meta:
+        $ref: '#/definitions/dto.PaginationMeta'
+    type: object
+  dto.LoginInput:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.MedalerDTO:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+    type: object
+  dto.MedalerListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.MedalerDTO'
+        type: array
+      meta:
+        $ref: '#/definitions/dto.PaginationMeta'
+    type: object
+  dto.PaginationMeta:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total_records:
+        type: integer
+    type: object
+  dto.Problem:
+    properties:
+      code:
+        type: string
+      detail:
+        type: string
+      fields:
+        additionalProperties:
+          type: string
+        type: object
+      instance:
+        type: string
+      status:
+        type: integer
+      title:
+        type: string
+      trace_id:
+        type: string
+      type:
+        type: string
+    type: object
+  dto.RefreshTokenInput:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  dto.UpdateEventInput:
+    properties:
+      description:
+        maxLength: 1024
+        type: string
+      name:
+        maxLength: 128
+        minLength: 1
+        type: string
+    type: object
+  dto.UpdateLocationInput:
+    properties:
+      address:
+        maxLength: 255
+        minLength: 3
+        type: string
+      name:
+        maxLength: 128
+        minLength: 3
+        type: string
+    type: object
+  dto.UpdateMedalerInput:
+    properties:
+      email:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        maxLength: 64
+        minLength: 3
+        type: string
+    type: object
+  dto.UpdateUserInput:
+    properties:
+      email:
+        type: string
+      event_id:
+        type: integer
+      password:
+        minLength: 8
+        type: string
+      role:
+        $ref: '#/definitions/user.Role'
+      username:
+        maxLength: 64
+        minLength: 3
+        type: string
+    type: object
+  dto.UserDTO:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      event_id:
+        type: integer
+      id:
+        type: integer
+      last_login_at:
+        type: string
+      role:
+        $ref: '#/definitions/user.Role'
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  dto.UserListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.UserDTO'
+        type: array
+      meta:
+        $ref: '#/definitions/dto.PaginationMeta'
+    type: object
+  user.Role:
+    enum:
+    - owner
+    - admin
+    - cashier
+    type: string
+    x-enum-varnames:
+    - RoleOwner
+    - RoleAdmin
+    - RoleCashier
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is the API for Kedunglo Biking Team.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: KBT API
+  version: "1.0"
+paths:
+  /activities:
+    get:
+      description: Retrieve a list of all activities with pagination and filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search query
+        in: query
+        name: q
+        type: string
+      - description: Sort order (e.g., id asc, name desc)
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ActivityListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Get all activities
+      tags:
+      - Activity
+  /activities/{id}:
+    get:
+      description: Retrieve a single activity by its ID
+      parameters:
+      - description: Activity ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ActivityDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Get an activity by ID
+      tags:
+      - Activity
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT tokens
+      parameters:
+      - description: Login credentials
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AuthOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: User login
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidate a refresh token
+      parameters:
+      - description: Refresh token
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RefreshTokenInput'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Logout user
+      tags:
+      - Auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Generate new access and refresh tokens from a valid refresh token
+      parameters:
+      - description: Refresh token
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RefreshTokenInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AuthOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Refresh JWT tokens
+      tags:
+      - Auth
+  /events:
+    get:
+      description: Retrieve a list of all events with pagination and filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search query
+        in: query
+        name: q
+        type: string
+      - description: Sort order (e.g., id asc, name desc)
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.EventListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Get all events
+      tags:
+      - Event
+    post:
+      consumes:
+      - application/json
+      description: Create a new event with the provided details
+      parameters:
+      - description: Event creation input
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateEventInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.EventDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Create a new event
+      tags:
+      - Event
+  /events/{id}:
+    delete:
+      description: Delete an event by its ID
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Delete an event
+      tags:
+      - Event
+    get:
+      description: Retrieve a single event by its ID
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.EventDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Get an event by ID
+      tags:
+      - Event
+    put:
+      consumes:
+      - application/json
+      description: Update an existing event with the provided details
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Event update input
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateEventInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.EventDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Update an event
+      tags:
+      - Event
+  /locations:
+    get:
+      description: Retrieve a list of all locations with pagination and filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search query
+        in: query
+        name: q
+        type: string
+      - description: Sort order (e.g., id asc, name desc)
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LocationListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Get all locations
+      tags:
+      - Location
+    post:
+      consumes:
+      - application/json
+      description: Create a new location with the provided details
+      parameters:
+      - description: Location creation input
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateLocationInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.LocationDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Create a new location
+      tags:
+      - Location
+  /locations/{id}:
+    delete:
+      description: Delete a location by its ID
+      parameters:
+      - description: Location ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Delete a location
+      tags:
+      - Location
+    get:
+      description: Retrieve a single location by its ID
+      parameters:
+      - description: Location ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LocationDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Get a location by ID
+      tags:
+      - Location
+    put:
+      consumes:
+      - application/json
+      description: Update an existing location with the provided details
+      parameters:
+      - description: Location ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Location update input
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateLocationInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LocationDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Update a location
+      tags:
+      - Location
+  /medalers:
+    get:
+      description: Retrieve a list of all medalers with pagination and filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search query
+        in: query
+        name: q
+        type: string
+      - description: Sort order (e.g., id asc, name desc)
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MedalerListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Get all medalers
+      tags:
+      - Medaler
+    post:
+      consumes:
+      - application/json
+      description: Create a new medaler with the provided details
+      parameters:
+      - description: Medaler creation input
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateMedalerInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.MedalerDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Create a new medaler
+      tags:
+      - Medaler
+  /medalers/{id}:
+    delete:
+      description: Delete a medaler by its ID
+      parameters:
+      - description: Medaler ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Delete a medaler
+      tags:
+      - Medaler
+    get:
+      description: Retrieve a single medaler by its ID
+      parameters:
+      - description: Medaler ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MedalerDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Get a medaler by ID
+      tags:
+      - Medaler
+    put:
+      consumes:
+      - application/json
+      description: Update an existing medaler with the provided details
+      parameters:
+      - description: Medaler ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Medaler update input
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateMedalerInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MedalerDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Update a medaler
+      tags:
+      - Medaler
+  /users:
+    get:
+      description: Retrieve a list of all users with pagination and filtering
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search query
+        in: query
+        name: q
+        type: string
+      - description: Sort order (e.g., id asc, name desc)
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Get all users
+      tags:
+      - User
+    post:
+      consumes:
+      - application/json
+      description: Create a new user with the provided details
+      parameters:
+      - description: User creation input
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateUserInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.UserDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Create a new user
+      tags:
+      - User
+  /users/{id}:
+    delete:
+      description: Delete a user by its ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Delete a user
+      tags:
+      - User
+    get:
+      description: Retrieve a single user by its ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Get a user by ID
+      tags:
+      - User
+    put:
+      consumes:
+      - application/json
+      description: Update an existing user with the provided details
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: User update input
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateUserInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Problem'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.Problem'
+      summary: Update a user
+      tags:
+      - User
+schemes:
+- http
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

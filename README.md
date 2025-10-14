@@ -9,9 +9,10 @@ API backend untuk Kedunglo Biking Team (KBT) dengan arsitektur modern, siap disk
 - **Konfigurasi berbasis environment** menggunakan `.env` dan `envconfig`, dilengkapi profil environment.
 - **Middleware komprehensif**: request ID, structured logging (slog), recovery, CORS, dan rate limiting.
 - **Validasi request** memakai `go-playground/validator` dengan DTO terpisah dari entity GORM.
-- **Observability** via OpenTelemetry stdout exporter (mudah diarahkan ke OTLP collector).
-- **Docker & Compose** untuk pengembangan lokal (API + PostgreSQL + Redis).
+- **Observability** via OpenTelemetry stdout exporter (mudah diarahkan ke OTLP collector) dan GORM instrumentation.
+- **Docker & Compose** untuk pengembangan lokal (API + PostgreSQL + Redis) dengan healthcheck.
 - **CI GitHub Actions** menjalankan lint → test → build → docker build.
+- **Response JSON konsisten** dengan envelope `success`, `message`, dan `data`.
 
 ## Getting started
 
@@ -62,12 +63,24 @@ go-api-kbt/
 │   ├── app/          # inisialisasi dependency & server
 │   ├── config/       # loader konfigurasi (.env + env vars)
 │   ├── database/     # koneksi postgres, migrasi, dan seed
-│   ├── domain/       # entity domain (user, event, location)
+│   ├── domain/       # entity domain (user, event, location, medaler, activity)
 │   ├── middleware/   # middleware custom (structured logging)
 │   ├── observability/# setup OpenTelemetry
 │   ├── repository/   # implementasi repositori (GORM)
+│   │   ├── event/
+│   │   ├── location/
+│   │   ├── medaler/
+│   │   ├── user/
+│   │   └── activity/
 │   ├── service/      # business logic/usecase
+│   │   ├── event/
+│   │   ├── location/
+│   │   ├── medaler/
+│   │   ├── user/
+│   │   └── activity/
 │   └── transport/    # HTTP handlers & router (chi)
+│       ├── http/
+│       │   ├── handler/ # handler HTTP (user, event, location, medaler, activity)
 ├── migrations/       # migrasi SQL (golang-migrate compatible)
 ├── docker-compose.yml
 ├── Dockerfile
@@ -76,6 +89,8 @@ go-api-kbt/
 ```
 
 ## Migrasi & seeding
+
+Skema DB otomatis dibuat saat aplikasi dijalankan menggunakan GORM AutoMigrate untuk entitas `User`, `Event`, `Location`, `Medaler`, dan `Activity`.
 
 Migrasi menggunakan format [golang-migrate](https://github.com/golang-migrate/migrate). Jalankan perintah berikut setelah mengisi variabel environment database:
 
@@ -87,7 +102,7 @@ Aktifkan `DB_SEED_ADMIN=true` untuk membuat akun admin default (`admin@example.c
 
 ## Testing
 
-Unit test tersedia untuk service layer. Tambahkan integration test menggunakan `httptest` atau Compose sesuai kebutuhan proyek.
+Unit test tersedia untuk service layer dan handler layer (table-driven). Tambahkan integration test menggunakan `httptest` atau Compose sesuai kebutuhan proyek.
 
 ## Observability
 
@@ -107,6 +122,72 @@ make docs-install
 
 Kemudian jalankan aplikasi dan buka `http://localhost:9090/docs/`.
 
+## Zero-Downtime Migration Guidelines
+
+Untuk memastikan migrasi database tanpa downtime, ikuti pedoman berikut:
+
+1.  **Additive Changes Only**: Hindari perubahan skema yang bersifat destruktif (misalnya, menghapus kolom atau tabel) dalam satu langkah migrasi. Lakukan perubahan secara bertahap.
+2.  **Backward Compatibility**: Pastikan versi aplikasi yang lebih lama masih dapat bekerja dengan skema database yang baru setelah migrasi diterapkan.
+3.  **Two-Phase Deployment**: Untuk perubahan yang lebih kompleks (misalnya, mengubah tipe kolom), lakukan dalam dua fase:
+    *   **Fase 1**: Tambahkan kolom baru, migrasikan data dari kolom lama ke kolom baru, dan perbarui aplikasi untuk menulis ke kedua kolom. Deploy aplikasi baru.
+    *   **Fase 2**: Hapus kolom lama dan perbarui aplikasi untuk hanya membaca dari kolom baru. Deploy aplikasi baru lagi.
+4.  **Testing**: Selalu uji migrasi di lingkungan staging sebelum diterapkan ke produksi.
+5.  **Rollback Plan**: Selalu siapkan rencana rollback jika terjadi masalah selama migrasi.
+
 ## Deployment
 
 Gunakan Docker image yang dihasilkan dari `Dockerfile` multi-stage. Target hosting yang disarankan: Railway, Render, Fly.io, atau platform container lain. Pastikan environment variable sudah terkonfigurasi dan endpoint health check (`/healthz`) digunakan untuk readiness probe.
+
+## Endpoint Samples
+
+### Health Check
+
+```bash
+curl -v http://localhost:9090/healthz
+```
+
+### Medaler
+
+#### Create Medaler
+
+```bash
+curl -v -X POST -H "Content-Type: application/json" -d '{"name":"John Doe","email":"john.doe@example.com"}' http://localhost:9090/api/v1/medalers
+```
+
+#### Get All Medaler
+
+```bash
+curl -v http://localhost:9090/api/v1/medalers
+```
+
+#### Get Medaler by ID
+
+```bash
+curl -v http://localhost:9090/api/v1/medalers/1
+```
+
+#### Update Medaler
+
+```bash
+curl -v -X PUT -H "Content-Type: application/json" -d '{"name":"Jane Doe","is_active":false}' http://localhost:9090/api/v1/medalers/1
+```
+
+#### Delete Medaler
+
+```bash
+curl -v -X DELETE http://localhost:9090/api/v1/medalers/1
+```
+
+### Activity
+
+#### Get All Activity
+
+```bash
+curl -v http://localhost:9090/api/v1/activities
+```
+
+#### Get Activity by ID
+
+```bash
+curl -v http://localhost:9090/api/v1/activities/1
+```

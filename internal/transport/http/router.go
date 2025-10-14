@@ -11,6 +11,7 @@ import (
 	chim "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 // RouterBuilder wires handlers and middleware together.
@@ -18,12 +19,18 @@ type RouterBuilder struct {
 	userHandler     *handler.UserHandler
 	eventHandler    *handler.EventHandler
 	locationHandler *handler.LocationHandler
+	medalerHandler  *handler.MedalerHandler
+	activityHandler *handler.ActivityHandler
+	authHandler     *handler.AuthHandler
 	middlewares     []func(http.Handler) http.Handler
+	cfg             *config.Config
+	db              database.Database
+	redis           *redis.Client
 }
 
 // NewRouterBuilder constructs a new router builder instance.
-func NewRouterBuilder(userHandler *handler.UserHandler) *RouterBuilder {
-	return &RouterBuilder{userHandler: userHandler}
+func NewRouterBuilder(userHandler *handler.UserHandler, cfg *config.Config, db database.Database, redis *redis.Client) *RouterBuilder {
+	return &RouterBuilder{userHandler: userHandler, cfg: cfg, db: db, redis: redis}
 }
 
 // WithEventHandler attaches an event handler.
@@ -35,6 +42,24 @@ func (b *RouterBuilder) WithEventHandler(h *handler.EventHandler) *RouterBuilder
 // WithLocationHandler attaches a location handler.
 func (b *RouterBuilder) WithLocationHandler(h *handler.LocationHandler) *RouterBuilder {
 	b.locationHandler = h
+	return b
+}
+
+// WithMedalerHandler attaches a medaler handler.
+func (b *RouterBuilder) WithMedalerHandler(h *handler.MedalerHandler) *RouterBuilder {
+	b.medalerHandler = h
+	return b
+}
+
+// WithActivityHandler attaches an activity handler.
+func (b *RouterBuilder) WithActivityHandler(h *handler.ActivityHandler) *RouterBuilder {
+	b.activityHandler = h
+	return b
+}
+
+// WithAuthHandler attaches an auth handler.
+func (b *RouterBuilder) WithAuthHandler(h *handler.AuthHandler) *RouterBuilder {
+	b.authHandler = h
 	return b
 }
 
@@ -53,14 +78,19 @@ func (b *RouterBuilder) Build() http.Handler {
 	r.Use(chim.RealIP)
 	r.Use(middleware.NewStructuredLogger())
 	r.Use(chim.Recoverer)
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
+	r.Use(SecurityHeadersMiddleware)
+
+	// CORS middleware
+	corsMiddleware := cors.New(cors.Options{
+		AllowedOrigins:   b.cfg.CORS.AllowedOrigins,
 		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "Idempotency-Key"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: false,
 		MaxAge:           300,
-	}))
+	})
+	r.Use(corsMiddleware.Handler)
+
 	r.Use(httprate.LimitByIP(100, time.Minute))
 
 	for _, mw := range b.middlewares {
@@ -77,6 +107,15 @@ func (b *RouterBuilder) Build() http.Handler {
 		if b.locationHandler != nil {
 			b.locationHandler.RegisterRoutes(r)
 		}
+		if b.medalerHandler != nil {
+			b.medalerHandler.RegisterRoutes(r)
+		}
+		if b.activityHandler != nil {
+			b.activityHandler.RegisterRoutes(r)
+		}
+		if b.authHandler != nil {
+			b.authHandler.RegisterRoutes(r)
+		}
 	})
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -84,8 +123,32 @@ func (b *RouterBuilder) Build() http.Handler {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	// Serve API docs (openapi + Swagger UI)
-	RegisterDocsRoutes(r)
+	r.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		// Check database connectivity
+		sqlDB, err := b.db.GormDB().DB()
+		if err != nil {
+			web.RespondError(w, http.StatusInternalServerError, "database connection error")
+			return
+		}
+		if err := sqlDB.PingContext(r.Context()); err != nil {
+			web.RespondError(w, http.StatusInternalServerError, "database ping failed")
+			return
+		}
+
+		// Check Redis connectivity
+		if b.redis != nil {
+			if err := b.redis.Ping(r.Context()).Err(); err != nil {
+				web.RespondError(w, http.StatusInternalServerError, "redis ping failed")
+				return
+			}
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+
+	// Serve Swagger UI
+	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	return r
 }

@@ -1,14 +1,46 @@
 package handler
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"reflect"
 	"strings"
 
+	"go-api-kbt/internal/transport/http/dto"
+
 	"github.com/go-playground/validator/v10"
 )
+
+func respondJSON(w http.ResponseWriter, status int, payload any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	response := map[string]any{
+		"success": status >= 200 && status < 300,
+		"data":    payload,
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		// response writing errors are logged but not returned to the client
+		slog.Default().Error("encode response", slog.String("error", err.Error()))
+	}
+}
+
+func respondError(w http.ResponseWriter, status int, message string) {
+	problem := dto.NewProblem(context.Background(), status, http.StatusText(status), message)
+	problem.Type = "about:blank"
+
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(status)
+
+	if err := json.NewEncoder(w).Encode(problem); err != nil {
+		slog.Default().Error("encode problem response", slog.String("error", err.Error()))
+	}
+}
 
 // tryRespondValidation inspects err for validator.ValidationErrors and, if
 // present, writes a 400 with a structured errors map. Returns true if it
@@ -16,11 +48,17 @@ import (
 func tryRespondValidation(w http.ResponseWriter, err error) bool {
 	var ve validator.ValidationErrors
 	if errors.As(err, &ve) {
-		out := map[string]string{}
+		problem := dto.NewProblem(context.Background(), http.StatusBadRequest, "Validation Failed", "One or more fields failed validation.")
+		problem.Type = "/errors/validation"
 		for _, fe := range ve {
-			out[fe.Field()] = fmt.Sprintf("failed on '%s'", fe.Tag())
+			problem = problem.WithField(fe.Field(), fmt.Sprintf("failed on '%s'", fe.Tag()))
 		}
-		respondJSON(w, http.StatusBadRequest, map[string]any{"errors": out})
+
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(problem); err != nil {
+			slog.Default().Error("encode problem response", slog.String("error", err.Error()))
+		}
 		return true
 	}
 	return false
@@ -60,16 +98,21 @@ func respondValidationWithJSONTags(w http.ResponseWriter, in any, err error) boo
 		}
 	}
 
-	out := map[string]string{}
+	problem := dto.NewProblem(context.Background(), http.StatusBadRequest, "Validation Failed", "One or more fields failed validation.")
+	problem.Type = "/errors/validation"
 	for _, fe := range ve {
 		fld := fe.Field()
 		jsonName, ok := tagMap[fld]
 		if !ok {
 			jsonName = strings.ToLower(fld)
 		}
-		out[jsonName] = fmt.Sprintf("failed on '%s'", fe.Tag())
+		problem = problem.WithField(jsonName, fmt.Sprintf("failed on '%s'", fe.Tag()))
 	}
 
-	respondJSON(w, http.StatusBadRequest, map[string]any{"errors": out})
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(http.StatusBadRequest)
+	if err := json.NewEncoder(w).Encode(problem); err != nil {
+		slog.Default().Error("encode problem response", slog.String("error", err.Error()))
+	}
 	return true
 }

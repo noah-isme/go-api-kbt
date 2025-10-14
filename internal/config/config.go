@@ -13,12 +13,17 @@ import (
 
 // Config aggregates all configuration groups required by the application.
 type Config struct {
-	App       AppConfig
-	Server    ServerConfig
-	Database  DatabaseConfig
-	Redis     RedisConfig
-	Auth      AuthConfig
-	Telemetry TelemetryConfig
+	App         AppConfig
+	Server      ServerConfig
+	Database    DatabaseConfig
+	Redis       RedisConfig
+	Auth        AuthConfig
+	Telemetry   TelemetryConfig
+	CORS        CORSConfig
+	RateLimit   RateLimitConfig
+	S3          S3Config
+	Idempotency IdempotencyConfig
+	Debug       DebugConfig
 }
 
 // AppConfig contains generic application settings.
@@ -31,7 +36,8 @@ type AppConfig struct {
 // ServerConfig represents HTTP server specific configuration.
 type ServerConfig struct {
 	Host                string        `envconfig:"HOST" default:"0.0.0.0"`
-	Port                int           `envconfig:"PORT" default:"9090"`
+	Port                int           `envconfig:"PORT" default:"8080"`
+	AdminPort           int           `envconfig:"ADMIN_PORT" default:"9090"`
 	ReadTimeout         time.Duration `envconfig:"READ_TIMEOUT" default:"15s"`
 	WriteTimeout        time.Duration `envconfig:"WRITE_TIMEOUT" default:"30s"`
 	IdleTimeout         time.Duration `envconfig:"IDLE_TIMEOUT" default:"60s"`
@@ -67,20 +73,49 @@ type RedisConfig struct {
 
 // AuthConfig defines JWT and password policy settings.
 type AuthConfig struct {
-	AccessTokenSecret  string        `envconfig:"ACCESS_TOKEN_SECRET" default:"dev-secret"`
-	RefreshTokenSecret string        `envconfig:"REFRESH_TOKEN_SECRET" default:"dev-refresh-secret"`
-	AccessTokenTTL     time.Duration `envconfig:"ACCESS_TOKEN_TTL" default:"15m"`
-	RefreshTokenTTL    time.Duration `envconfig:"REFRESH_TOKEN_TTL" default:"720h"`
-	HashCost           int           `envconfig:"HASH_COST" default:"12"`
+	Secret          string        `envconfig:"JWT_SECRET" required:"true"`
+	AccessTokenTTL  time.Duration `envconfig:"JWT_ACCESS_TTL" default:"15m"`
+	RefreshTokenTTL time.Duration `envconfig:"JWT_REFRESH_TTL" default:"720h"`
+	HashCost        int           `envconfig:"HASH_COST" default:"12"`
 }
 
 // TelemetryConfig encapsulates OpenTelemetry exporter configuration.
 type TelemetryConfig struct {
-	Endpoint      string `envconfig:"ENDPOINT" default:""`
-	Insecure      bool   `envconfig:"INSECURE" default:"true"`
-	ServiceName   string `envconfig:"SERVICE_NAME" default:"go-api-kbt"`
-	EnableMetrics bool   `envconfig:"ENABLE_METRICS" default:"true"`
-	EnableTracing bool   `envconfig:"ENABLE_TRACING" default:"true"`
+	Enabled           bool   `envconfig:"OTEL_ENABLED" default:"true"`
+	Exporter          string `envconfig:"OTEL_EXPORTER" default:"stdout"` // stdout or otlp
+	CollectorEndpoint string `envconfig:"OTEL_COLLECTOR_ENDPOINT" default:"otel-collector:4317"`
+	ServiceName       string `envconfig:"SERVICE_NAME" default:"go-api-kbt"`
+	EnableMetrics     bool   `envconfig:"ENABLE_PROMETHEUS" default:"true"` // Renamed from EnableMetrics
+	EnableTracing     bool   `envconfig:"ENABLE_TRACING" default:"true"`
+}
+
+// CORSConfig defines CORS settings.
+type CORSConfig struct {
+	AllowedOrigins []string `envconfig:"CORS_ALLOWED_ORIGINS" default:"*"`
+}
+
+// RateLimitConfig defines rate limiting settings.
+type RateLimitConfig struct {
+	PerMinute int `envconfig:"RATE_LIMIT_PER_MIN" default:"100"`
+}
+
+// S3Config defines S3 storage settings.
+type S3Config struct {
+	Endpoint  string `envconfig:"S3_ENDPOINT"`
+	Bucket    string `envconfig:"S3_BUCKET"`
+	AccessKey string `envconfig:"S3_ACCESS_KEY"`
+	SecretKey string `envconfig:"S3_SECRET_KEY"`
+	UseSSL    bool   `envconfig:"S3_USE_SSL" default:"false"`
+}
+
+// IdempotencyConfig defines idempotency settings.
+type IdempotencyConfig struct {
+	TTL time.Duration `envconfig:"IDEMPOTENCY_TTL" default:"24h"`
+}
+
+// DebugConfig defines debugging settings.
+type DebugConfig struct {
+	EnablePprof bool `envconfig:"ENABLE_PPROF" default:"false"`
 }
 
 // Load loads configuration values from the environment. When a .env file is
@@ -104,6 +139,11 @@ func Load(logger *slog.Logger) (*Config, error) {
 		{prefix: "REDIS", target: &cfg.Redis},
 		{prefix: "AUTH", target: &cfg.Auth},
 		{prefix: "OTEL", target: &cfg.Telemetry},
+		{prefix: "CORS", target: &cfg.CORS},
+		{prefix: "RATE_LIMIT", target: &cfg.RateLimit},
+		{prefix: "S3", target: &cfg.S3},
+		{prefix: "IDEMPOTENCY", target: &cfg.Idempotency},
+		{prefix: "DEBUG", target: &cfg.Debug},
 	}
 
 	for _, l := range loaders {

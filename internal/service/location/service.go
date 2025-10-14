@@ -7,107 +7,94 @@ import (
 
 	domain "go-api-kbt/internal/domain/location"
 	repo "go-api-kbt/internal/repository/location"
-
-	"github.com/go-playground/validator/v10"
+	"go-api-kbt/internal/transport/http/dto"
 )
 
+// Service orchestrates location domain operations.
 type Service struct {
-	repo repo.Repository
-	v    *validator.Validate
+	repository repo.Repository
 }
 
-func NewService(r repo.Repository) *Service { return &Service{repo: r, v: validator.New()} }
-
-type CreateInput struct {
-	UserID    uint    `json:"user_id" validate:"required"`
-	EventID   uint    `json:"event_id" validate:"required"`
-	Latitude  float64 `json:"latitude" validate:"required"`
-	Longitude float64 `json:"longitude" validate:"required"`
-	Timestamp int64   `json:"timestamp" validate:"required"`
+// NewService constructs a new service.
+func NewService(repository repo.Repository) *Service {
+	return &Service{repository: repository}
 }
 
-type UpdateInput struct {
-	Latitude  *float64 `json:"latitude" validate:"omitempty"`
-	Longitude *float64 `json:"longitude" validate:"omitempty"`
-	Timestamp *int64   `json:"timestamp" validate:"omitempty"`
+// LocationListResponse represents the response for listing locations.
+type LocationListResponse struct {
+	Data []dto.LocationDTO `json:"data"`
+	Meta dto.PaginationMeta    `json:"meta"`
 }
 
-type DTO struct {
-	ID        uint      `json:"id"`
-	UserID    uint      `json:"user_id"`
-	EventID   uint      `json:"event_id"`
-	Latitude  float64   `json:"latitude"`
-	Longitude float64   `json:"longitude"`
-	Timestamp int64     `json:"timestamp"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-func (s *Service) Create(ctx context.Context, in CreateInput) (DTO, error) {
-	if s.v == nil {
-		s.v = validator.New()
-	}
-	if err := s.v.Struct(in); err != nil {
-		return DTO{}, fmt.Errorf("validate input: %w", err)
+// Create registers a new location.
+func (s *Service) Create(ctx context.Context, input dto.CreateLocationInput) (dto.LocationDTO, error) {
+	entity := &domain.Entity{
+		Name:    input.Name,
+		Address: input.Address,
 	}
 
-	e := &domain.Entity{UserID: in.UserID, EventID: in.EventID, Latitude: in.Latitude, Longitude: in.Longitude, Timestamp: in.Timestamp}
-	if err := s.repo.Create(ctx, e); err != nil {
-		return DTO{}, fmt.Errorf("create location: %w", err)
+	if err := s.repository.Create(ctx, entity); err != nil {
+		return dto.LocationDTO{}, fmt.Errorf("create location: %w", err)
 	}
-	return toDTO(e), nil
+
+	return toDTO(entity), nil
 }
 
-func (s *Service) List(ctx context.Context, limit, offset int) ([]DTO, error) {
-	ls, err := s.repo.List(ctx, limit, offset)
+// List returns paginated locations.
+func (s *Service) List(ctx context.Context, limit, offset int) ([]dto.LocationDTO, error) {
+	locations, err := s.repository.List(ctx, limit, offset)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]DTO, 0, len(ls))
-	for _, l := range ls {
-		copy := l
-		out = append(out, toDTO(&copy))
+
+	dtos := make([]dto.LocationDTO, 0, len(locations))
+	for _, l := range locations {
+		location := l
+		dtos = append(dtos, toDTO(&location))
 	}
-	return out, nil
+	return dtos, nil
 }
 
-func (s *Service) Get(ctx context.Context, id uint) (DTO, error) {
-	l, err := s.repo.GetByID(ctx, id)
+// Get fetches a location by ID.
+func (s *Service) Get(ctx context.Context, id uint) (dto.LocationDTO, error) {
+	entity, err := s.repository.GetByID(ctx, id)
 	if err != nil {
-		return DTO{}, err
+		return dto.LocationDTO{}, err
 	}
-	return toDTO(l), nil
+	return toDTO(entity), nil
 }
 
-func (s *Service) Update(ctx context.Context, id uint, in UpdateInput) (DTO, error) {
-	if s.v == nil {
-		s.v = validator.New()
-	}
-	if err := s.v.Struct(in); err != nil {
-		return DTO{}, fmt.Errorf("validate input: %w", err)
-	}
-
-	l, err := s.repo.GetByID(ctx, id)
+// Update modifies an existing location.
+func (s *Service) Update(ctx context.Context, id uint, input dto.UpdateLocationInput) (dto.LocationDTO, error) {
+	entity, err := s.repository.GetByID(ctx, id)
 	if err != nil {
-		return DTO{}, err
+		return dto.LocationDTO{}, err
 	}
-	if in.Latitude != nil {
-		l.Latitude = *in.Latitude
+
+	if input.Name != nil {
+		entity.Name = *input.Name
 	}
-	if in.Longitude != nil {
-		l.Longitude = *in.Longitude
+	if input.Address != nil {
+		entity.Address = *input.Address
 	}
-	if in.Timestamp != nil {
-		l.Timestamp = *in.Timestamp
+
+	if err := s.repository.Update(ctx, entity); err != nil {
+		return dto.LocationDTO{}, err
 	}
-	if err := s.repo.Update(ctx, l); err != nil {
-		return DTO{}, err
-	}
-	return toDTO(l), nil
+	return toDTO(entity), nil
 }
 
-func (s *Service) Delete(ctx context.Context, id uint) error { return s.repo.Delete(ctx, id) }
+// Delete removes a location.
+func (s *Service) Delete(ctx context.Context, id uint) error {
+	return s.repository.Delete(ctx, id)
+}
 
-func toDTO(l *domain.Entity) DTO {
-	return DTO{ID: l.ID, UserID: l.UserID, EventID: l.EventID, Latitude: l.Latitude, Longitude: l.Longitude, Timestamp: l.Timestamp, CreatedAt: l.CreatedAt, UpdatedAt: l.UpdatedAt}
+func toDTO(entity *domain.Entity) dto.LocationDTO {
+	return dto.LocationDTO{
+		ID:        entity.ID,
+		Name:      entity.Name,
+		Address:   entity.Address,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	}
 }
