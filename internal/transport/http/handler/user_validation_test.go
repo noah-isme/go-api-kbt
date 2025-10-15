@@ -28,8 +28,8 @@ func (m *mockUserRepo) GetByID(ctx context.Context, id uint) (*domain.Entity, er
 func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (*domain.Entity, error) {
 	return nil, repo.ErrNotFound
 }
-func (m *mockUserRepo) List(ctx context.Context, limit, offset int) ([]domain.Entity, error) {
-	return nil, nil
+func (m *mockUserRepo) List(ctx context.Context, limit, offset int) ([]domain.Entity, int, error) {
+	return nil, 0, nil
 }
 func (m *mockUserRepo) Update(ctx context.Context, user *domain.Entity) error { return nil }
 func (m *mockUserRepo) Delete(ctx context.Context, id uint) error             { return nil }
@@ -49,30 +49,28 @@ func TestUserCreateValidationReturnsJSONTags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
 	}
-	var body map[string]map[string]string
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	var problem struct {
+		Fields map[string]string `json:"fields"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	errs, ok := body["errors"]
-	if !ok {
-		t.Fatalf("expected errors key")
-	}
 	// expect keys and specific messages
-	if v, ok := errs["email"]; !ok {
+	if v, ok := problem.Fields["email"]; !ok {
 		t.Fatalf("expected email in errors")
 	} else if v != "failed on 'email'" {
 		t.Fatalf("unexpected email error msg: %s", v)
 	}
-	if v, ok := errs["password"]; !ok {
+	if v, ok := problem.Fields["password"]; !ok {
 		t.Fatalf("expected password in errors")
 	} else if v != "failed on 'min'" {
 		t.Fatalf("unexpected password error msg: %s", v)
 	}
-	if v, ok := errs["username"]; !ok {
+	if v, ok := problem.Fields["username"]; !ok {
 		t.Fatalf("expected username in errors")
 	} else if v != "failed on 'min'" {
 		t.Fatalf("unexpected username error msg: %s", v)

@@ -2,14 +2,11 @@ package location
 
 import "gorm.io/gorm"
 
-// Entity represents a tracked location for a user during an event.
+// Entity represents a stored location such as a meetup or checkpoint.
 type Entity struct {
 	gorm.Model
-	UserID    uint
-	EventID   uint
-	Latitude  float64
-	Longitude float64
-	Timestamp int64
+	Name    string
+	Address string
 }
 
 // TableName overrides the locations table name.

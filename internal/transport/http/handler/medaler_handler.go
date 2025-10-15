@@ -7,8 +7,8 @@ import (
 	"net/http"
 
 	service "go-api-kbt/internal/service/medaler"
-	web "go-api-kbt/internal/transport/http"
 	"go-api-kbt/internal/transport/http/dto"
+	httputil "go-api-kbt/internal/transport/httputil"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -48,21 +48,21 @@ func (h *MedalerHandler) RegisterRoutes(r chi.Router) {
 func (h *MedalerHandler) create(w http.ResponseWriter, r *http.Request) {
 	var input dto.CreateMedalerInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request payload")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid request payload")
 		return
 	}
 
 	dto, err := h.service.Create(r.Context(), input)
 	if err != nil {
-		if RespondValidationWithJSONTags(w, input, err) {
+		if httputil.RespondValidationWithJSONTags(w, input, err) {
 			return
 		}
 		h.logger.Error("create medaler", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to create medaler")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to create medaler")
 		return
 	}
 
-	respondJSON(w, http.StatusCreated, dto)
+	httputil.RespondJSON(w, http.StatusCreated, dto)
 }
 
 // @Summary Get all medalers
@@ -77,7 +77,7 @@ func (h *MedalerHandler) create(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /medalers [get]
 func (h *MedalerHandler) list(w http.ResponseWriter, r *http.Request) {
-	params := web.ParsePaginationParams(r)
+	params := httputil.ParsePaginationParams(r)
 
 	input := service.ListInput{
 		Page:  params.Page,
@@ -89,10 +89,10 @@ func (h *MedalerHandler) list(w http.ResponseWriter, r *http.Request) {
 	medalers, meta, err := h.service.List(r.Context(), input)
 	if err != nil {
 		h.logger.Error("list medalers", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to list medalers")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to list medalers")
 		return
 	}
-	respondJSON(w, http.StatusOK, map[string]any{
+	httputil.RespondJSON(w, http.StatusOK, map[string]any{
 		"data": medalers,
 		"meta": meta,
 	})
@@ -109,24 +109,24 @@ func (h *MedalerHandler) list(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /medalers/{id} [get]
 func (h *MedalerHandler) get(w http.ResponseWriter, r *http.Request) {
-	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
+	id, err := httputil.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid medaler id")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid medaler id")
 		return
 	}
 
 	dto, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, errors.New("medaler not found")) { // Using the generic error from repository for now
-			respondError(w, http.StatusNotFound, "medaler not found")
+			httputil.RespondError(w, http.StatusNotFound, "medaler not found")
 			return
 		}
 		h.logger.Error("get medaler", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to get medaler")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to get medaler")
 		return
 	}
 
-	respondJSON(w, http.StatusOK, dto)
+	httputil.RespondJSON(w, http.StatusOK, dto)
 }
 
 // @Summary Update a medaler
@@ -142,28 +142,28 @@ func (h *MedalerHandler) get(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /medalers/{id} [put]
 func (h *MedalerHandler) update(w http.ResponseWriter, r *http.Request) {
-	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
+	id, err := httputil.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid medaler id")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid medaler id")
 		return
 	}
 
 	var input dto.UpdateMedalerInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request payload")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid request payload")
 		return
 	}
 
 	dto, err := h.service.Update(r.Context(), id, input)
 	if err != nil {
-		if TryRespondValidation(w, err) {
+		if httputil.TryRespondValidation(w, err) {
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to update medaler")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to update medaler")
 		return
 	}
 
-	respondJSON(w, http.StatusOK, dto)
+	httputil.RespondJSON(w, http.StatusOK, dto)
 }
 
 // @Summary Delete a medaler
@@ -177,15 +177,15 @@ func (h *MedalerHandler) update(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /medalers/{id} [delete]
 func (h *MedalerHandler) delete(w http.ResponseWriter, r *http.Request) {
-	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
+	id, err := httputil.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid medaler id")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid medaler id")
 		return
 	}
 
 	if err := h.service.Delete(r.Context(), id); err != nil {
 		// In a real application, you would handle specific errors like ErrNotFound
-		respondError(w, http.StatusInternalServerError, "failed to delete medaler")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to delete medaler")
 		return
 	}
 

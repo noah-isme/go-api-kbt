@@ -31,13 +31,22 @@ type ListInput struct {
 
 // ActivityListResponse represents the response for listing activities.
 type ActivityListResponse struct {
-	Data []dto.ActivityDTO `json:"data"`
-	Meta dto.PaginationMeta    `json:"meta"`
+	Data []dto.ActivityDTO  `json:"data"`
+	Meta dto.PaginationMeta `json:"meta"`
 }
 
 // List returns all activities.
 func (s *Service) List(ctx context.Context, input ListInput) ([]dto.ActivityDTO, dto.PaginationMeta, error) {
-	activities, total, err := s.repository.FindAll(ctx, input.Limit, input.Page*input.Limit, input.Query, input.Sort)
+	if input.Page <= 0 {
+		input.Page = 1
+	}
+	if input.Limit <= 0 {
+		input.Limit = 20
+	}
+
+	offset := (input.Page - 1) * input.Limit
+
+	activities, total, err := s.repository.FindAll(ctx, input.Limit, offset, input.Query, input.Sort)
 	if err != nil {
 		return nil, dto.PaginationMeta{}, fmt.Errorf("list activities: %w", err)
 	}
@@ -49,8 +58,8 @@ func (s *Service) List(ctx context.Context, input ListInput) ([]dto.ActivityDTO,
 	}
 
 	meta := dto.PaginationMeta{
-		Page:        input.Page,
-		Limit:       input.Limit,
+		Page:         input.Page,
+		Limit:        input.Limit,
 		TotalRecords: int(total),
 	}
 

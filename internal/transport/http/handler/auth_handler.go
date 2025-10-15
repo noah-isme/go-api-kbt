@@ -7,8 +7,8 @@ import (
 	"net/http"
 
 	service "go-api-kbt/internal/service/auth"
-	web "go-api-kbt/internal/transport/http"
 	"go-api-kbt/internal/transport/http/dto"
+	httputil "go-api-kbt/internal/transport/httputil"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -45,26 +45,26 @@ func (h *AuthHandler) RegisterRoutes(r chi.Router) {
 func (h *AuthHandler) login(w http.ResponseWriter, r *http.Request) {
 	var input dto.LoginInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request payload")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid request payload")
 		return
 	}
 
 	output, err := h.service.Login(r.Context(), input)
 	if err != nil {
-		if RespondValidationWithJSONTags(w, input, err) {
+		if httputil.RespondValidationWithJSONTags(w, input, err) {
 			return
 		}
 		switch {
 		case errors.Is(err, service.ErrInvalidCredentials):
-			respondError(w, http.StatusUnauthorized, err.Error())
+			httputil.RespondError(w, http.StatusUnauthorized, err.Error())
 		default:
 			h.logger.Error("login failed", slog.String("error", err.Error()))
-			respondError(w, http.StatusInternalServerError, "failed to login")
+			httputil.RespondError(w, http.StatusInternalServerError, "failed to login")
 		}
 		return
 	}
 
-	respondJSON(w, http.StatusOK, output)
+	httputil.RespondJSON(w, http.StatusOK, output)
 }
 
 // @Summary Refresh JWT tokens
@@ -82,26 +82,26 @@ func (h *AuthHandler) refresh(w http.ResponseWriter, r *http.Request) {
 	var input dto.RefreshTokenInput
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request payload")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid request payload")
 		return
 	}
 
 	output, err := h.service.Refresh(r.Context(), input.RefreshToken)
 	if err != nil {
-		if TryRespondValidation(w, err) {
+		if httputil.TryRespondValidation(w, err) {
 			return
 		}
 		switch {
 		case errors.Is(err, service.ErrUnauthorized):
-			respondError(w, http.StatusUnauthorized, err.Error())
+			httputil.RespondError(w, http.StatusUnauthorized, err.Error())
 		default:
 			h.logger.Error("refresh token failed", slog.String("error", err.Error()))
-			respondError(w, http.StatusInternalServerError, "failed to refresh token")
+			httputil.RespondError(w, http.StatusInternalServerError, "failed to refresh token")
 		}
 		return
 	}
 
-	respondJSON(w, http.StatusOK, output)
+	httputil.RespondJSON(w, http.StatusOK, output)
 }
 
 // @Summary Logout user
@@ -118,16 +118,16 @@ func (h *AuthHandler) logout(w http.ResponseWriter, r *http.Request) {
 	var input dto.RefreshTokenInput
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request payload")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid request payload")
 		return
 	}
 
 	if err := h.service.Logout(r.Context(), input.RefreshToken); err != nil {
-		if TryRespondValidation(w, err) {
+		if httputil.TryRespondValidation(w, err) {
 			return
 		}
 		h.logger.Error("logout failed", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to logout")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to logout")
 		return
 	}
 

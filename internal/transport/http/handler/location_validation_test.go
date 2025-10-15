@@ -23,26 +23,29 @@ func TestLocationCreateValidationReturnsJSONTags(t *testing.T) {
 	defer ts.Close()
 
 	// invalid payload: missing required fields
-	payload := []byte(`{"latitude":0}`)
+	payload := []byte(`{"name":"","address":""}`)
 	resp, err := http.Post(ts.URL+"/api/v1/locations", "application/json", bytes.NewReader(payload))
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
 	}
-	var body map[string]map[string]string
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	var problem struct {
+		Fields map[string]string `json:"fields"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	errs, ok := body["errors"]
-	if !ok {
-		t.Fatalf("expected errors key")
-	}
-	if v, ok := errs["user_id"]; !ok {
-		t.Fatalf("expected user_id in errors")
+	if v, ok := problem.Fields["name"]; !ok {
+		t.Fatalf("expected name in errors")
 	} else if v != "failed on 'required'" {
-		t.Fatalf("unexpected user_id error msg: %s", v)
+		t.Fatalf("unexpected name error msg: %s", v)
+	}
+	if v, ok := problem.Fields["address"]; !ok {
+		t.Fatalf("expected address in errors")
+	} else if v != "failed on 'required'" {
+		t.Fatalf("unexpected address error msg: %s", v)
 	}
 }

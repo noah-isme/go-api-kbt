@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -77,14 +78,36 @@ func (m *inMemoryRepo) GetByEmail(ctx context.Context, email string) (*domain.En
 	return nil, repo.ErrNotFound
 }
 
-func (m *inMemoryRepo) List(ctx context.Context, limit, offset int) ([]domain.Entity, error) {
+func (m *inMemoryRepo) List(ctx context.Context, limit, offset int) ([]domain.Entity, int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	out := make([]domain.Entity, 0, len(m.data))
-	for _, e := range m.data {
-		out = append(out, *e)
+
+	if limit <= 0 {
+		limit = 20
 	}
-	return out, nil
+	if offset < 0 {
+		offset = 0
+	}
+
+	entries := make([]domain.Entity, 0, len(m.data))
+	for _, e := range m.data {
+		entries = append(entries, *e)
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].ID < entries[j].ID })
+
+	total := len(entries)
+	if offset > total {
+		offset = total
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+
+	page := make([]domain.Entity, end-offset)
+	copy(page, entries[offset:end])
+
+	return page, total, nil
 }
 
 func (m *inMemoryRepo) Update(ctx context.Context, entity *domain.Entity) error {
@@ -126,7 +149,7 @@ func TestHealthz(t *testing.T) {
 	if err != nil {
 		t.Fatalf("healthz request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -152,16 +175,20 @@ func TestUserCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected 201, got %d: %s", resp.StatusCode, string(body))
 	}
-	var created map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
+	var envelope map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode create response: %v", err)
 	}
-	idf, ok := created["id"].(float64)
+	data, ok := envelope["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("missing data envelope")
+	}
+	idf, ok := data["id"].(float64)
 	if !ok {
 		t.Fatalf("invalid id in response")
 	}
@@ -172,9 +199,29 @@ func TestUserCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var listEnvelope struct {
+		Data struct {
+			Data []map[string]any `json:"data"`
+			Meta struct {
+				Page         float64 `json:"page"`
+				Limit        float64 `json:"limit"`
+				TotalRecords float64 `json:"total_records"`
+			} `json:"meta"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&listEnvelope); err != nil {
+		t.Fatalf("decode list response: %v", err)
+	}
+	if len(listEnvelope.Data.Data) == 0 {
+		t.Fatalf("expected at least one user in list response")
+	}
+	if listEnvelope.Data.Meta.TotalRecords < 1 {
+		t.Fatalf("expected total records meta to be populated")
 	}
 
 	// Get
@@ -182,7 +229,7 @@ func TestUserCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -196,7 +243,7 @@ func TestUserCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("update request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -207,7 +254,7 @@ func TestUserCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("delete request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d", resp.StatusCode)
 	}
@@ -217,7 +264,7 @@ func TestUserCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get after delete failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404 after delete, got %d", resp.StatusCode)
 	}

@@ -71,20 +71,30 @@ func (r *GormRepository) GetByEmail(ctx context.Context, email string) (*domain.
 	return &entity, nil
 }
 
-// List returns a paginated list of users.
-func (r *GormRepository) List(ctx context.Context, limit, offset int) ([]domain.Entity, error) {
+// List returns a paginated list of users along with the total number of records.
+func (r *GormRepository) List(ctx context.Context, limit, offset int) ([]domain.Entity, int, error) {
 	ctx, cancel := r.withTimeout(ctx)
 	defer cancel()
 
 	if limit <= 0 {
 		limit = 20
 	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	db := r.db.WithContext(ctx)
+
+	var total int64
+	if err := db.Model(&domain.Entity{}).Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("count users: %w", err)
+	}
 
 	var users []domain.Entity
-	if err := r.db.WithContext(ctx).Limit(limit).Offset(offset).Order("id asc").Find(&users).Error; err != nil {
-		return nil, fmt.Errorf("list users: %w", err)
+	if err := db.Model(&domain.Entity{}).Limit(limit).Offset(offset).Order("id asc").Find(&users).Error; err != nil {
+		return nil, 0, fmt.Errorf("list users: %w", err)
 	}
-	return users, nil
+	return users, int(total), nil
 }
 
 // Update modifies a user record.

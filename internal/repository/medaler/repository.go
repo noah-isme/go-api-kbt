@@ -1,6 +1,10 @@
 package medaler
 
-import "go-api-kbt/internal/domain/medaler"
+import (
+	"context"
+
+	"go-api-kbt/internal/domain/medaler"
+)
 
 type MedalerRepository interface {
 	FindAll(ctx context.Context, limit, offset int, query, sort string) ([]medaler.Medaler, int, error)

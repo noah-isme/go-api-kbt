@@ -4,13 +4,18 @@ import (
 	"net/http"
 	"time"
 
+	"go-api-kbt/internal/config"
+	"go-api-kbt/internal/database"
 	"go-api-kbt/internal/middleware"
 	handler "go-api-kbt/internal/transport/http/handler"
+	httpmiddleware "go-api-kbt/internal/transport/http/middleware"
+	httputil "go-api-kbt/internal/transport/httputil"
 
 	"github.com/go-chi/chi/v5"
 	chim "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
+	"github.com/redis/go-redis/v9"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
@@ -29,8 +34,16 @@ type RouterBuilder struct {
 }
 
 // NewRouterBuilder constructs a new router builder instance.
-func NewRouterBuilder(userHandler *handler.UserHandler, cfg *config.Config, db database.Database, redis *redis.Client) *RouterBuilder {
-	return &RouterBuilder{userHandler: userHandler, cfg: cfg, db: db, redis: redis}
+func NewRouterBuilder(userHandler *handler.UserHandler) *RouterBuilder {
+	return &RouterBuilder{userHandler: userHandler}
+}
+
+// WithSystemDeps sets shared configuration and infrastructure dependencies used by the router.
+func (b *RouterBuilder) WithSystemDeps(cfg *config.Config, db database.Database, redis *redis.Client) *RouterBuilder {
+	b.cfg = cfg
+	b.db = db
+	b.redis = redis
+	return b
 }
 
 // WithEventHandler attaches an event handler.
@@ -78,20 +91,28 @@ func (b *RouterBuilder) Build() http.Handler {
 	r.Use(chim.RealIP)
 	r.Use(middleware.NewStructuredLogger())
 	r.Use(chim.Recoverer)
-	r.Use(SecurityHeadersMiddleware)
+	r.Use(httpmiddleware.SecurityHeadersMiddleware)
 
 	// CORS middleware
-	corsMiddleware := cors.New(cors.Options{
-		AllowedOrigins:   b.cfg.CORS.AllowedOrigins,
+	corsOptions := cors.Options{
+		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "Idempotency-Key"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: false,
 		MaxAge:           300,
-	})
+	}
+	if b.cfg != nil {
+		corsOptions.AllowedOrigins = b.cfg.CORS.AllowedOrigins
+	}
+	corsMiddleware := cors.New(corsOptions)
 	r.Use(corsMiddleware.Handler)
 
-	r.Use(httprate.LimitByIP(100, time.Minute))
+	rateLimitPerMin := 100
+	if b.cfg != nil && b.cfg.RateLimit.PerMinute > 0 {
+		rateLimitPerMin = b.cfg.RateLimit.PerMinute
+	}
+	r.Use(httprate.LimitByIP(rateLimitPerMin, time.Minute))
 
 	for _, mw := range b.middlewares {
 		r.Use(mw)
@@ -125,20 +146,22 @@ func (b *RouterBuilder) Build() http.Handler {
 
 	r.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		// Check database connectivity
-		sqlDB, err := b.db.GormDB().DB()
-		if err != nil {
-			web.RespondError(w, http.StatusInternalServerError, "database connection error")
-			return
-		}
-		if err := sqlDB.PingContext(r.Context()); err != nil {
-			web.RespondError(w, http.StatusInternalServerError, "database ping failed")
-			return
+		if b.db != nil {
+			sqlDB, err := b.db.GormDB().DB()
+			if err != nil {
+				httputil.RespondError(w, http.StatusInternalServerError, "database connection error")
+				return
+			}
+			if err := sqlDB.PingContext(r.Context()); err != nil {
+				httputil.RespondError(w, http.StatusInternalServerError, "database ping failed")
+				return
+			}
 		}
 
 		// Check Redis connectivity
 		if b.redis != nil {
 			if err := b.redis.Ping(r.Context()).Err(); err != nil {
-				web.RespondError(w, http.StatusInternalServerError, "redis ping failed")
+				httputil.RespondError(w, http.StatusInternalServerError, "redis ping failed")
 				return
 			}
 		}
@@ -146,6 +169,8 @@ func (b *RouterBuilder) Build() http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+
+	RegisterDocsRoutes(r)
 
 	// Serve Swagger UI
 	r.Get("/swagger/*", httpSwagger.WrapHandler)

@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	service "go-api-kbt/internal/service/activity"
-	web "go-api-kbt/internal/transport/http"
 	"go-api-kbt/internal/transport/http/dto"
+	httputil "go-api-kbt/internal/transport/httputil"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -40,7 +40,7 @@ func (h *ActivityHandler) RegisterRoutes(r chi.Router) {
 // @Failure 500 {object} dto.Problem
 // @Router /activities [get]
 func (h *ActivityHandler) list(w http.ResponseWriter, r *http.Request) {
-	params := web.ParsePaginationParams(r)
+	params := httputil.ParsePaginationParams(r)
 
 	input := service.ListInput{
 		Page:  params.Page,
@@ -52,13 +52,11 @@ func (h *ActivityHandler) list(w http.ResponseWriter, r *http.Request) {
 	activities, meta, err := h.service.List(r.Context(), input)
 	if err != nil {
 		h.logger.Error("list activities", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to list activities")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to list activities")
 		return
 	}
-	respondJSON(w, http.StatusOK, map[string]any{
-		"data": activities,
-		"meta": meta,
-	})
+	response := dto.ActivityListResponse{Data: activities, Meta: meta}
+	httputil.RespondJSON(w, http.StatusOK, response)
 }
 
 // @Summary Get an activity by ID
@@ -72,18 +70,18 @@ func (h *ActivityHandler) list(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /activities/{id} [get]
 func (h *ActivityHandler) get(w http.ResponseWriter, r *http.Request) {
-	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
+	id, err := httputil.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid activity id")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid activity id")
 		return
 	}
 
-	dto, err := h.service.GetByID(r.Context(), id)
+	activity, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
 		// Using a generic error for now, in a real app you'd check for specific errors like ErrNotFound
-		respondError(w, http.StatusNotFound, "activity not found")
+		httputil.RespondError(w, http.StatusNotFound, "activity not found")
 		return
 	}
 
-	respondJSON(w, http.StatusOK, dto)
+	httputil.RespondJSON(w, http.StatusOK, activity)
 }

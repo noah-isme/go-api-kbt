@@ -8,8 +8,8 @@ import (
 
 	repo "go-api-kbt/internal/repository/event"
 	service "go-api-kbt/internal/service/event"
-	web "go-api-kbt/internal/transport/http"
 	"go-api-kbt/internal/transport/http/dto"
+	httputil "go-api-kbt/internal/transport/httputil"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -49,21 +49,21 @@ func (h *EventHandler) RegisterRoutes(r chi.Router) {
 func (h *EventHandler) create(w http.ResponseWriter, r *http.Request) {
 	var input dto.CreateEventInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request payload")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid request payload")
 		return
 	}
 
 	dto, err := h.service.Create(r.Context(), input)
 	if err != nil {
-		if RespondValidationWithJSONTags(w, input, err) {
+		if httputil.RespondValidationWithJSONTags(w, input, err) {
 			return
 		}
 		h.logger.Error("create event", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to create event")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to create event")
 		return
 	}
 
-	respondJSON(w, http.StatusCreated, dto)
+	httputil.RespondJSON(w, http.StatusCreated, dto)
 }
 
 // @Summary Get all events
@@ -78,18 +78,14 @@ func (h *EventHandler) create(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /events [get]
 func (h *EventHandler) list(w http.ResponseWriter, r *http.Request) {
-	limit, offset := web.ParsePagination(r)
-	events, err := h.service.List(r.Context(), limit, offset)
+	params := httputil.ParsePaginationParams(r)
+	response, err := h.service.List(r.Context(), params)
 	if err != nil {
 		h.logger.Error("list events", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to list events")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to list events")
 		return
 	}
-	respondJSON(w, http.StatusOK, map[string]any{
-		"data":   events,
-		"limit":  limit,
-		"offset": offset,
-	})
+	httputil.RespondJSON(w, http.StatusOK, response)
 }
 
 // @Summary Get an event by ID
@@ -103,24 +99,24 @@ func (h *EventHandler) list(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /events/{id} [get]
 func (h *EventHandler) get(w http.ResponseWriter, r *http.Request) {
-	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
+	id, err := httputil.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid event id")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid event id")
 		return
 	}
 
 	dto, err := h.service.Get(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "event not found")
+			httputil.RespondError(w, http.StatusNotFound, "event not found")
 			return
 		}
 		h.logger.Error("get event", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to get event")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to get event")
 		return
 	}
 
-	respondJSON(w, http.StatusOK, dto)
+	httputil.RespondJSON(w, http.StatusOK, dto)
 }
 
 // @Summary Update an event
@@ -136,33 +132,33 @@ func (h *EventHandler) get(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /events/{id} [put]
 func (h *EventHandler) update(w http.ResponseWriter, r *http.Request) {
-	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
+	id, err := httputil.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid event id")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid event id")
 		return
 	}
 
 	var input dto.UpdateEventInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request payload")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid request payload")
 		return
 	}
 
 	dto, err := h.service.Update(r.Context(), id, input)
 	if err != nil {
-		if TryRespondValidation(w, err) {
+		if httputil.TryRespondValidation(w, err) {
 			return
 		}
 		if errors.Is(err, repo.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "event not found")
+			httputil.RespondError(w, http.StatusNotFound, "event not found")
 			return
 		}
 		h.logger.Error("update event", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to update event")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to update event")
 		return
 	}
 
-	respondJSON(w, http.StatusOK, dto)
+	httputil.RespondJSON(w, http.StatusOK, dto)
 }
 
 // @Summary Delete an event
@@ -176,19 +172,19 @@ func (h *EventHandler) update(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /events/{id} [delete]
 func (h *EventHandler) delete(w http.ResponseWriter, r *http.Request) {
-	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
+	id, err := httputil.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid event id")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid event id")
 		return
 	}
 
 	if err := h.service.Delete(r.Context(), id); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "event not found")
+			httputil.RespondError(w, http.StatusNotFound, "event not found")
 			return
 		}
 		h.logger.Error("delete event", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to delete event")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to delete event")
 		return
 	}
 

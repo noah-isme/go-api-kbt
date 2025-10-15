@@ -1,13 +1,12 @@
 package middleware
 
 import (
-	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"go-api-kbt/internal/config"
-	"go-api-kbt/internal/service/auth"
+	serviceAuth "go-api-kbt/internal/service/auth"
 
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel"
@@ -17,7 +16,7 @@ import (
 )
 
 // TracingMiddleware creates a new span for each request and propagates trace context.
-func TracingMiddleware(cfg *config.Telemetry) func(next http.Handler) http.Handler {
+func TracingMiddleware(cfg *config.TelemetryConfig) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !cfg.EnableTracing {
@@ -36,9 +35,16 @@ func TracingMiddleware(cfg *config.Telemetry) func(next http.Handler) http.Handl
 			defer span.End()
 
 			// Add common span attributes
+			routePattern := r.URL.Path
+			if routeContext := chi.RouteContext(ctx); routeContext != nil {
+				if pattern := routeContext.RoutePattern(); pattern != "" {
+					routePattern = pattern
+				}
+			}
+
 			span.SetAttributes(
 				attribute.String("http.method", r.Method),
-				attribute.String("http.route", chi.RouteContext(ctx).RoutePattern()),
+				attribute.String("http.route", routePattern),
 				attribute.String("http.target", r.URL.Path),
 				attribute.String("http.flavor", fmt.Sprintf("1.%d", r.ProtoMajor)),
 				attribute.String("net.host.name", r.Host),
@@ -46,7 +52,7 @@ func TracingMiddleware(cfg *config.Telemetry) func(next http.Handler) http.Handl
 			)
 
 			// Add user ID to span attributes if authenticated
-			claims, ok := ctx.Value(auth.ContextKeyUser).(*auth.Claims)
+			claims, ok := ctx.Value(ContextKeyUser).(*serviceAuth.Claims)
 			if ok {
 				span.SetAttributes(attribute.Int64("user.id", int64(claims.UserID)))
 			}

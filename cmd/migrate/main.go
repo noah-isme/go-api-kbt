@@ -1,9 +1,6 @@
 package main
 
 import (
-	"database/sql"
-	"embed"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -12,10 +9,9 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/lib/pq"
-)
 
-//go:embed ../../migrations/*.sql
-var fs embed.FS
+	"go-api-kbt/migrations"
+)
 
 func main() {
 	databaseURL := os.Getenv("DATABASE_URL")
@@ -23,7 +19,7 @@ func main() {
 		log.Fatal("DATABASE_URL environment variable not set")
 	}
 
-	source, err := iofs.New(fs, "../../migrations")
+	source, err := iofs.New(migrations.Files, ".")
 	if err != nil {
 		log.Fatalf("failed to create iofs source: %v", err)
 	}

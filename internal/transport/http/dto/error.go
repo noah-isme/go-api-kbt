@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"context"
 	"fmt"
 
 	"go.opentelemetry.io/otel/trace"
