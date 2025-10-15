@@ -40,7 +40,9 @@ func RegisterDocsRoutes(r chi.Router) {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.Copy(w, f)

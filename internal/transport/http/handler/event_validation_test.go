@@ -28,19 +28,17 @@ func TestEventCreateValidationReturnsJSONTags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
 	}
-	var body map[string]map[string]string
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	var problem struct {
+		Fields map[string]string `json:"fields"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	errs, ok := body["errors"]
-	if !ok {
-		t.Fatalf("expected errors key")
-	}
-	if v, ok := errs["name"]; !ok {
+	if v, ok := problem.Fields["name"]; !ok {
 		t.Fatalf("expected name in errors")
 	} else if v != "failed on 'min'" && v != "failed on 'required'" {
 		t.Fatalf("unexpected name error msg: %s", v)

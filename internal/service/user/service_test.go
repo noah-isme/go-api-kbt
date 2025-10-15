@@ -8,6 +8,7 @@ import (
 	domain "go-api-kbt/internal/domain/user"
 	repo "go-api-kbt/internal/repository/user"
 	"go-api-kbt/internal/service/user"
+	"go-api-kbt/internal/transport/http/dto"
 )
 
 type mockRepository struct {
@@ -33,8 +34,8 @@ func (m *mockRepository) GetByEmail(ctx context.Context, email string) (*domain.
 	return nil, repo.ErrNotFound
 }
 
-func (m *mockRepository) List(ctx context.Context, limit, offset int) ([]domain.Entity, error) {
-	return nil, errors.New("not implemented")
+func (m *mockRepository) List(ctx context.Context, limit, offset int) ([]domain.Entity, int, error) {
+	return nil, 0, errors.New("not implemented")
 }
 
 func (m *mockRepository) Update(ctx context.Context, entity *domain.Entity) error {
@@ -51,7 +52,7 @@ func TestServiceCreateValidation(t *testing.T) {
 	repository := &mockRepository{}
 	service := user.NewService(repository, 4)
 
-	_, err := service.Create(context.Background(), user.CreateInput{})
+	_, err := service.Create(context.Background(), dto.CreateUserInput{})
 	if err == nil {
 		t.Fatalf("expected validation error")
 	}
@@ -70,7 +71,7 @@ func TestServiceCreateSuccess(t *testing.T) {
 
 	service := user.NewService(repository, 4)
 
-	dto, err := service.Create(context.Background(), user.CreateInput{
+	out, err := service.Create(context.Background(), dto.CreateUserInput{
 		Username: "testuser",
 		Email:    "test@example.com",
 		Password: "password123",
@@ -80,10 +81,10 @@ func TestServiceCreateSuccess(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if dto.ID != 1 {
-		t.Fatalf("expected ID 1, got %d", dto.ID)
+	if out.ID != 1 {
+		t.Fatalf("expected ID 1, got %d", out.ID)
 	}
-	if dto.Email != "test@example.com" {
+	if out.Email != "test@example.com" {
 		t.Fatalf("expected email to be preserved")
 	}
 }

@@ -9,8 +9,8 @@ import (
 
 	repo "go-api-kbt/internal/repository/user"
 	service "go-api-kbt/internal/service/user"
-	web "go-api-kbt/internal/transport/http"
 	"go-api-kbt/internal/transport/http/dto"
+	httputil "go-api-kbt/internal/transport/httputil"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -51,28 +51,28 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 func (h *UserHandler) create(w http.ResponseWriter, r *http.Request) {
 	var input dto.CreateUserInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request payload")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid request payload")
 		return
 	}
 
 	dto, err := h.service.Create(r.Context(), input)
 	if err != nil {
 		// validation errors
-		if RespondValidationWithJSONTags(w, input, err) {
+		if httputil.RespondValidationWithJSONTags(w, input, err) {
 			return
 		}
 
 		switch {
 		case errors.Is(err, service.ErrEmailAlreadyExists):
-			respondError(w, http.StatusConflict, err.Error())
+			httputil.RespondError(w, http.StatusConflict, err.Error())
 		default:
 			h.logger.Error("create user", slog.String("error", err.Error()))
-			respondError(w, http.StatusInternalServerError, "failed to create user")
+			httputil.RespondError(w, http.StatusInternalServerError, "failed to create user")
 		}
 		return
 	}
 
-	respondJSON(w, http.StatusCreated, dto)
+	httputil.RespondJSON(w, http.StatusCreated, dto)
 }
 
 // @Summary Get all users
@@ -87,18 +87,14 @@ func (h *UserHandler) create(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /users [get]
 func (h *UserHandler) list(w http.ResponseWriter, r *http.Request) {
-	limit, offset := web.ParsePagination(r)
-	users, err := h.service.List(r.Context(), limit, offset)
+	params := httputil.ParsePaginationParams(r)
+	response, err := h.service.List(r.Context(), params)
 	if err != nil {
 		h.logger.Error("list users", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to list users")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to list users")
 		return
 	}
-	respondJSON(w, http.StatusOK, map[string]any{
-		"data":   users,
-		"limit":  limit,
-		"offset": offset,
-	})
+	httputil.RespondJSON(w, http.StatusOK, response)
 }
 
 // @Summary Get a user by ID
@@ -112,24 +108,24 @@ func (h *UserHandler) list(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /users/{id} [get]
 func (h *UserHandler) get(w http.ResponseWriter, r *http.Request) {
-	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
+	id, err := httputil.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid user id")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid user id")
 		return
 	}
 
 	dto, err := h.service.Get(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "user not found")
+			httputil.RespondError(w, http.StatusNotFound, "user not found")
 			return
 		}
 		h.logger.Error("get user", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to get user")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to get user")
 		return
 	}
 
-	respondJSON(w, http.StatusOK, dto)
+	httputil.RespondJSON(w, http.StatusOK, dto)
 }
 
 // @Summary Update a user
@@ -145,9 +141,9 @@ func (h *UserHandler) get(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /users/{id} [put]
 func (h *UserHandler) update(w http.ResponseWriter, r *http.Request) {
-	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
+	id, err := httputil.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid user id")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid user id")
 		return
 	}
 
@@ -156,25 +152,25 @@ func (h *UserHandler) update(w http.ResponseWriter, r *http.Request) {
 	var input dto.UpdateUserInput
 	if err := json.Unmarshal(body, &input); err != nil {
 		h.logger.Error("failed to decode update payload", slog.String("error", err.Error()), slog.String("body", string(body)))
-		respondError(w, http.StatusBadRequest, "invalid request payload")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid request payload")
 		return
 	}
 
 	dto, err := h.service.Update(r.Context(), id, input)
 	if err != nil {
-		if TryRespondValidation(w, err) {
+		if httputil.TryRespondValidation(w, err) {
 			return
 		}
 		if errors.Is(err, repo.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "user not found")
+			httputil.RespondError(w, http.StatusNotFound, "user not found")
 			return
 		}
 		h.logger.Error("update user", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to update user")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to update user")
 		return
 	}
 
-	respondJSON(w, http.StatusOK, dto)
+	httputil.RespondJSON(w, http.StatusOK, dto)
 }
 
 // @Summary Delete a user
@@ -188,19 +184,19 @@ func (h *UserHandler) update(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /users/{id} [delete]
 func (h *UserHandler) delete(w http.ResponseWriter, r *http.Request) {
-	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
+	id, err := httputil.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid user id")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid user id")
 		return
 	}
 
 	if err := h.service.Delete(r.Context(), id); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "user not found")
+			httputil.RespondError(w, http.StatusNotFound, "user not found")
 			return
 		}
 		h.logger.Error("delete user", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to delete user")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to delete user")
 		return
 	}
 

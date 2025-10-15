@@ -2,14 +2,13 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 
 	"go-api-kbt/internal/config"
-	serviceAuth "go-api-kbt/internal/service/auth"
 	userDomain "go-api-kbt/internal/domain/user"
-	web "go-api-kbt/internal/transport/http"
+	serviceAuth "go-api-kbt/internal/service/auth"
+	httputil "go-api-kbt/internal/transport/httputil"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -26,13 +25,13 @@ func AuthMiddleware(cfg *config.AuthConfig) func(next http.Handler) http.Handler
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				web.RespondError(w, http.StatusUnauthorized, "missing authorization header")
+				httputil.RespondError(w, http.StatusUnauthorized, "missing authorization header")
 				return
 			}
 
 			headerParts := strings.Split(authHeader, " ")
 			if len(headerParts) != 2 || strings.ToLower(headerParts[0]) != "bearer" {
-				web.RespondError(w, http.StatusUnauthorized, "invalid authorization header format")
+				httputil.RespondError(w, http.StatusUnauthorized, "invalid authorization header format")
 				return
 			}
 
@@ -43,7 +42,7 @@ func AuthMiddleware(cfg *config.AuthConfig) func(next http.Handler) http.Handler
 			})
 
 			if err != nil || !token.Valid || claims.Subject != "access" {
-				web.RespondError(w, http.StatusUnauthorized, "invalid or expired token")
+				httputil.RespondError(w, http.StatusUnauthorized, "invalid or expired token")
 				return
 			}
 
@@ -60,7 +59,7 @@ func RequireRole(roles ...userDomain.Role) func(next http.Handler) http.Handler 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			claims, ok := r.Context().Value(ContextKeyUser).(*serviceAuth.Claims)
 			if !ok {
-				web.RespondError(w, http.StatusForbidden, "access denied: user claims not found")
+				httputil.RespondError(w, http.StatusForbidden, "access denied: user claims not found")
 				return
 			}
 
@@ -73,7 +72,7 @@ func RequireRole(roles ...userDomain.Role) func(next http.Handler) http.Handler 
 			}
 
 			if !hasRole {
-				web.RespondError(w, http.StatusForbidden, "access denied: insufficient role")
+				httputil.RespondError(w, http.StatusForbidden, "access denied: insufficient role")
 				return
 			}
 

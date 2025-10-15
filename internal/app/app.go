@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"embed"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -10,11 +9,6 @@ import (
 
 	"go-api-kbt/internal/config"
 	"go-api-kbt/internal/database"
-	domainActivity "go-api-kbt/internal/domain/activity"
-	domainEvent "go-api-kbt/internal/domain/event"
-	domainLocation "go-api-kbt/internal/domain/location"
-	domainMedaler "go-api-kbt/internal/domain/medaler"
-	domainUser "go-api-kbt/internal/domain/user"
 
 	repoActivity "go-api-kbt/internal/repository/activity"
 	repoAuth "go-api-kbt/internal/repository/auth"
@@ -32,15 +26,13 @@ import (
 
 	transport "go-api-kbt/internal/transport/http"
 	handler "go-api-kbt/internal/transport/http/handler"
+	"go-api-kbt/migrations"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/redis/go-redis/v9"
 )
-
-//go:embed ../../migrations/*.sql
-var fs embed.FS
 
 // Application wires dependencies and exposes a runnable HTTP server.
 type Application struct {
@@ -60,7 +52,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Applica
 	// Run migrations if enabled
 	if cfg.Database.RunMigrations {
 		logger.Info("running database migrations")
-		source, err := iofs.New(fs, "../../migrations")
+		source, err := iofs.New(migrations.Files, ".")
 		if err != nil {
 			return nil, fmt.Errorf("failed to create iofs source: %w", err)
 		}
@@ -86,12 +78,12 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Applica
 
 	// Initialize Redis client
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     cfg.Redis.Addr,
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
-		PoolSize: 100,
-		PoolTimeout: cfg.Redis.Timeout,
-		ReadTimeout: cfg.Redis.Timeout,
+		Addr:         cfg.Redis.Addr,
+		Password:     cfg.Redis.Password,
+		DB:           cfg.Redis.DB,
+		PoolSize:     100,
+		PoolTimeout:  cfg.Redis.Timeout,
+		ReadTimeout:  cfg.Redis.Timeout,
 		WriteTimeout: cfg.Redis.Timeout,
 	})
 
@@ -123,13 +115,13 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Applica
 	authService := serviceAuth.NewService(userRepository, authRepository, &cfg.Auth)
 	authHandler := handler.NewAuthHandler(authService, logger)
 
-	router := transport.NewRouterBuilder(userHandler, cfg, db, redisClient).
+	router := transport.NewRouterBuilder(userHandler).
+		WithSystemDeps(cfg, db, redisClient).
 		WithEventHandler(eventHandler).
 		WithLocationHandler(locationHandler).
 		WithMedalerHandler(medalerHandler).
 		WithActivityHandler(activityHandler).
 		WithAuthHandler(authHandler).
-		WithMiddlewares().
 		Build()
 
 	srv := &http.Server{

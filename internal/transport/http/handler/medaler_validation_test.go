@@ -26,7 +26,11 @@ func (m *mockMedalerRepo) Create(ctx context.Context, medaler *domain.Medaler) e
 func (m *mockMedalerRepo) FindByID(ctx context.Context, id uint) (*domain.Medaler, error) {
 	return nil, gorm.ErrRecordNotFound
 }
-func (m *mockMedalerRepo) FindAll(ctx context.Context) ([]domain.Medaler, error) { return nil, nil }
+func (m *mockMedalerRepo) FindAll(ctx context.Context, limit, offset int, query, sort string) ([]domain.Medaler, int, error) {
+	return nil, 0, nil
+}
+func (m *mockMedalerRepo) Update(ctx context.Context, medaler *domain.Medaler) error { return nil }
+func (m *mockMedalerRepo) Delete(ctx context.Context, id uint) error                 { return nil }
 
 func TestMedalerCreateValidation(t *testing.T) {
 	// create service with a mock repository
@@ -43,11 +47,20 @@ func TestMedalerCreateValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
-	// The current handler does not have explicit validation, so it will return 500 for now.
-	// Once validation is added to the service layer, this test will need to be updated.
-	if resp.StatusCode != http.StatusInternalServerError {
-		t.Fatalf("expected 500, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+	var problem struct {
+		Fields map[string]string `json:"fields"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if v, ok := problem.Fields["email"]; !ok {
+		t.Fatalf("expected email validation error")
+	} else if v != "failed on 'email'" {
+		t.Fatalf("unexpected email validation message: %s", v)
 	}
 }

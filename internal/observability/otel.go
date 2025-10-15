@@ -47,11 +47,12 @@ func Setup(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Provi
 	switch cfg.Telemetry.Exporter {
 	case "otlp":
 		logger.Info("using OTLP trace exporter", slog.String("endpoint", cfg.Telemetry.CollectorEndpoint))
-		conn, err := grpc.DialContext(ctx, cfg.Telemetry.CollectorEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+		conn, err := grpc.NewClient(cfg.Telemetry.CollectorEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return nil, fmt.Errorf("create OTLP gRPC connection: %w", err)
 		}
-		otlpExporter, err := otlptrace.New(ctx, otlptracegrpc.WithGRPCConn(conn))
+		client := otlptracegrpc.NewClient(otlptracegrpc.WithGRPCConn(conn))
+		otlpExporter, err := otlptrace.New(ctx, client)
 		if err != nil {
 			return nil, fmt.Errorf("create OTLP trace exporter: %w", err)
 		}

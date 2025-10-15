@@ -3,7 +3,6 @@ package event
 import (
 	"context"
 	"fmt"
-	"time"
 
 	domain "go-api-kbt/internal/domain/event"
 	repo "go-api-kbt/internal/repository/event"
@@ -21,7 +20,7 @@ func NewService(r repo.Repository) *Service { return &Service{repo: r, v: valida
 
 // EventListResponse represents the response for listing events.
 type EventListResponse struct {
-	Data []dto.EventDTO `json:"data"`
+	Data []dto.EventDTO     `json:"data"`
 	Meta dto.PaginationMeta `json:"meta"`
 }
 
@@ -40,17 +39,33 @@ func (s *Service) Create(ctx context.Context, in dto.CreateEventInput) (dto.Even
 	return toDTO(e), nil
 }
 
-func (s *Service) List(ctx context.Context, limit, offset int) ([]dto.EventDTO, error) {
-	es, err := s.repo.List(ctx, limit, offset)
-	if err != nil {
-		return nil, err
+func (s *Service) List(ctx context.Context, params dto.PaginationParams) (dto.EventListResponse, error) {
+	if params.Page <= 0 {
+		params.Page = 1
 	}
+	if params.Limit <= 0 {
+		params.Limit = 20
+	}
+
+	offset := (params.Page - 1) * params.Limit
+	es, total, err := s.repo.List(ctx, params.Limit, offset)
+	if err != nil {
+		return dto.EventListResponse{}, err
+	}
+
 	out := make([]dto.EventDTO, 0, len(es))
 	for _, e := range es {
 		copy := e
 		out = append(out, toDTO(&copy))
 	}
-	return out, nil
+
+	meta := dto.PaginationMeta{
+		Page:         params.Page,
+		Limit:        params.Limit,
+		TotalRecords: total,
+	}
+
+	return dto.EventListResponse{Data: out, Meta: meta}, nil
 }
 
 func (s *Service) Get(ctx context.Context, id uint) (dto.EventDTO, error) {

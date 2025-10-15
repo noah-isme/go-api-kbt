@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	domain "go-api-kbt/internal/domain/user"
 	repo "go-api-kbt/internal/repository/user"
@@ -54,8 +53,8 @@ func NewService(repository repo.Repository, hashCost int) *Service {
 
 // UserListResponse represents the response for listing users.
 type UserListResponse struct {
-	Data []dto.UserDTO `json:"data"`
-	Meta dto.PaginationMeta  `json:"meta"`
+	Data []dto.UserDTO      `json:"data"`
+	Meta dto.PaginationMeta `json:"meta"`
 }
 
 // AuthenticateInput contains login credentials.
@@ -67,7 +66,7 @@ type AuthenticateInput struct {
 // AuthenticateOutput holds authentication result details.
 type AuthenticateOutput struct {
 	User  dto.UserDTO `json:"user"`
-	Token string `json:"access_token"`
+	Token string      `json:"access_token"`
 }
 
 // Create registers a new user.
@@ -105,11 +104,19 @@ func (s *Service) Create(ctx context.Context, input dto.CreateUserInput) (dto.Us
 	return toDTO(entity), nil
 }
 
-// List returns paginated users.
-func (s *Service) List(ctx context.Context, limit, offset int) ([]dto.UserDTO, error) {
-	users, err := s.repository.List(ctx, limit, offset)
+// List returns paginated users along with pagination metadata.
+func (s *Service) List(ctx context.Context, params dto.PaginationParams) (dto.UserListResponse, error) {
+	if params.Page <= 0 {
+		params.Page = 1
+	}
+	if params.Limit <= 0 {
+		params.Limit = 20
+	}
+
+	offset := (params.Page - 1) * params.Limit
+	users, total, err := s.repository.List(ctx, params.Limit, offset)
 	if err != nil {
-		return nil, err
+		return dto.UserListResponse{}, err
 	}
 
 	dtos := make([]dto.UserDTO, 0, len(users))
@@ -117,7 +124,14 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]dto.UserDTO, e
 		user := u
 		dtos = append(dtos, toDTO(&user))
 	}
-	return dtos, nil
+
+	meta := dto.PaginationMeta{
+		Page:         params.Page,
+		Limit:        params.Limit,
+		TotalRecords: total,
+	}
+
+	return dto.UserListResponse{Data: dtos, Meta: meta}, nil
 }
 
 // Get fetches a user by ID.
@@ -183,4 +197,3 @@ func toDTO(entity *domain.Entity) dto.UserDTO {
 		UpdatedAt: entity.UpdatedAt,
 	}
 }
-

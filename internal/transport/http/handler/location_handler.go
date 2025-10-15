@@ -8,8 +8,8 @@ import (
 
 	repo "go-api-kbt/internal/repository/location"
 	service "go-api-kbt/internal/service/location"
-	web "go-api-kbt/internal/transport/http"
 	"go-api-kbt/internal/transport/http/dto"
+	httputil "go-api-kbt/internal/transport/httputil"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -47,23 +47,23 @@ func (h *LocationHandler) RegisterRoutes(r chi.Router) {
 // @Failure 500 {object} dto.Problem
 // @Router /locations [post]
 func (h *LocationHandler) create(w http.ResponseWriter, r *http.Request) {
-	var input service.CreateInput
+	var input dto.CreateLocationInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request payload")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid request payload")
 		return
 	}
 
 	dto, err := h.service.Create(r.Context(), input)
 	if err != nil {
-		if RespondValidationWithJSONTags(w, input, err) {
+		if httputil.RespondValidationWithJSONTags(w, input, err) {
 			return
 		}
 		h.logger.Error("create location", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to create location")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to create location")
 		return
 	}
 
-	respondJSON(w, http.StatusCreated, dto)
+	httputil.RespondJSON(w, http.StatusCreated, dto)
 }
 
 // @Summary Get all locations
@@ -78,18 +78,14 @@ func (h *LocationHandler) create(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /locations [get]
 func (h *LocationHandler) list(w http.ResponseWriter, r *http.Request) {
-	limit, offset := web.ParsePagination(r)
-	locations, err := h.service.List(r.Context(), limit, offset)
+	params := httputil.ParsePaginationParams(r)
+	response, err := h.service.List(r.Context(), params)
 	if err != nil {
 		h.logger.Error("list locations", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to list locations")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to list locations")
 		return
 	}
-	respondJSON(w, http.StatusOK, map[string]any{
-		"data":   locations,
-		"limit":  limit,
-		"offset": offset,
-	})
+	httputil.RespondJSON(w, http.StatusOK, response)
 }
 
 // @Summary Get a location by ID
@@ -103,24 +99,24 @@ func (h *LocationHandler) list(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /locations/{id} [get]
 func (h *LocationHandler) get(w http.ResponseWriter, r *http.Request) {
-	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
+	id, err := httputil.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid location id")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid location id")
 		return
 	}
 
 	dto, err := h.service.Get(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "location not found")
+			httputil.RespondError(w, http.StatusNotFound, "location not found")
 			return
 		}
 		h.logger.Error("get location", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to get location")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to get location")
 		return
 	}
 
-	respondJSON(w, http.StatusOK, dto)
+	httputil.RespondJSON(w, http.StatusOK, dto)
 }
 
 // @Summary Update a location
@@ -136,33 +132,33 @@ func (h *LocationHandler) get(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /locations/{id} [put]
 func (h *LocationHandler) update(w http.ResponseWriter, r *http.Request) {
-	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
+	id, err := httputil.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid location id")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid location id")
 		return
 	}
 
-	var input service.UpdateInput
+	var input dto.UpdateLocationInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request payload")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid request payload")
 		return
 	}
 
 	dto, err := h.service.Update(r.Context(), id, input)
 	if err != nil {
-		if TryRespondValidation(w, err) {
+		if httputil.TryRespondValidation(w, err) {
 			return
 		}
 		if errors.Is(err, repo.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "location not found")
+			httputil.RespondError(w, http.StatusNotFound, "location not found")
 			return
 		}
 		h.logger.Error("update location", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to update location")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to update location")
 		return
 	}
 
-	respondJSON(w, http.StatusOK, dto)
+	httputil.RespondJSON(w, http.StatusOK, dto)
 }
 
 // @Summary Delete a location
@@ -176,23 +172,21 @@ func (h *LocationHandler) update(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.Problem
 // @Router /locations/{id} [delete]
 func (h *LocationHandler) delete(w http.ResponseWriter, r *http.Request) {
-	id, err := web.ParseUintParam(chi.URLParam(r, "id"))
+	id, err := httputil.ParseUintParam(chi.URLParam(r, "id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid location id")
+		httputil.RespondError(w, http.StatusBadRequest, "invalid location id")
 		return
 	}
 
 	if err := h.service.Delete(r.Context(), id); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "location not found")
+			httputil.RespondError(w, http.StatusNotFound, "location not found")
 			return
 		}
 		h.logger.Error("delete location", slog.String("error", err.Error()))
-		respondError(w, http.StatusInternalServerError, "failed to delete location")
+		httputil.RespondError(w, http.StatusInternalServerError, "failed to delete location")
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
-
-

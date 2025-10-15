@@ -36,15 +36,26 @@ func (r *GormRepository) GetByID(ctx context.Context, id uint) (*domain.Entity, 
 	return &e, nil
 }
 
-func (r *GormRepository) List(ctx context.Context, limit, offset int) ([]domain.Entity, error) {
+func (r *GormRepository) List(ctx context.Context, limit, offset int) ([]domain.Entity, int, error) {
 	if limit <= 0 {
 		limit = 20
 	}
-	var out []domain.Entity
-	if err := r.db.WithContext(ctx).Limit(limit).Offset(offset).Order("id asc").Find(&out).Error; err != nil {
-		return nil, fmt.Errorf("list events: %w", err)
+	if offset < 0 {
+		offset = 0
 	}
-	return out, nil
+
+	db := r.db.WithContext(ctx)
+
+	var total int64
+	if err := db.Model(&domain.Entity{}).Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("count events: %w", err)
+	}
+
+	var out []domain.Entity
+	if err := db.Model(&domain.Entity{}).Limit(limit).Offset(offset).Order("id asc").Find(&out).Error; err != nil {
+		return nil, 0, fmt.Errorf("list events: %w", err)
+	}
+	return out, int(total), nil
 }
 
 func (r *GormRepository) Update(ctx context.Context, e *domain.Entity) error {
